@@ -1,3 +1,5 @@
+the <- rlang::new_environment()
+
 # ad-hoc check functions ------------------------------------------------------
 check_inherits <- function(
   x,

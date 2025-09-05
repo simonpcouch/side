@@ -75,7 +75,7 @@ btw_tool_agent <- function(
     ok_turns <- is_list(turns) || is_function(turns) || inherits(turns, "Chat")
     if (!ok_turns) {
       cli::cli_abort(
-        "{.var turns} must be a list of {.fn ellmer::Turn}s, an {.code ellmer::Chat}, or a function, not {.obj_type_friendly {turns}}."
+        "{.var turns} must be a list of {.fn Turn}s, an {.code Chat}, or a function, not {.obj_type_friendly {turns}}."
       )
     }
   }
@@ -149,15 +149,15 @@ btw_tool_agent <- function(
     promises::as.promise(m)
   }
 
-  ellmer::tool(
+  tool(
     agent_fn,
     description = description,
     arguments = list(
-      prompt = ellmer::type_string(
+      prompt = type_string(
       "The prompt to send to the agent. This should be a specific task or question."
     )),
     name = name,
-    annotations = ellmer::tool_annotations(
+    annotations = tool_annotations(
       title = title %||% glue_("btw Agent ({{name}})")
     ),
     convert = TRUE
@@ -166,7 +166,7 @@ btw_tool_agent <- function(
 
 BtwAgentToolResult <- S7::new_class(
   "BtwAgentToolResult",
-  parent = ellmer::ContentToolResult
+  parent = ContentToolResult
 )
 
 S7::method(print, BtwAgentToolResult) <- function(x, ...) {
@@ -200,7 +200,7 @@ S7::method(print, BtwAgentToolResult) <- function(x, ...) {
 }
 
 glue_ <- function(x, ..., .envir = parent.frame()) {
-  as.character(ellmer::interpolate(x, ..., .envir = .envir))
+  as.character(interpolate(x, ..., .envir = .envir))
 }
 
 flatten_and_check_tools <- function(tools) {
@@ -208,9 +208,9 @@ flatten_and_check_tools <- function(tools) {
     return(list())
   }
 
-  if (inherits(tools, "ellmer::ToolDef")) {
+  if (inherits(tools, "ToolDef")) {
     cli::cli_abort(
-      "{.arg tools} should be a list of {.help ellmer::tool} tools or character names for {.pkg btw} tools."
+      "{.arg tools} should be a list of {.help tool} tools or character names for {.pkg btw} tools."
     )
   }
 
@@ -229,7 +229,7 @@ flatten_and_check_tools <- function(tools) {
   flat_tools <- list()
   for (i in seq_along(tools)) {
     tool <- tools[[i]]
-    if (inherits(tool, "ellmer::ToolDef")) {
+    if (inherits(tool, "ToolDef")) {
       flat_tools <- c(flat_tools, list(tool))
     } else if (is.character(tool)) {
       flat_tools <- c(flat_tools, btw_tools(tool))

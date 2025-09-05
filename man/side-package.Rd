@@ -4,12 +4,12 @@
 \name{side-package}
 \alias{side}
 \alias{side-package}
-\title{side: What the Package Does (One Line, Title Case)}
+\title{side: Package Development Coding Agent}
 \description{
-What the package does (one paragraph).
+Package development coding agent, demoing what's possible with btw.
 }
 \author{
-\strong{Maintainer}: First Last \email{first.last@example.com}
+\strong{Maintainer}: Simon Couch \email{simon.couch@posit.co}
 
 }
 \keyword{internal}

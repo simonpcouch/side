@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "mcp__r-btw__btw_tool_docs_help_page"
+      "mcp__r-btw__btw_tool_docs_help_page",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []
