@@ -1,0 +1,8 @@
+^side\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^README\.Rmd$
+^cran-comments\.md$
+CLAUDE.md
+.claude/
+inst/prompts
