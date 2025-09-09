@@ -166,7 +166,7 @@ btw_tool_agent <- function(
 
 BtwAgentToolResult <- S7::new_class(
   "BtwAgentToolResult",
-  parent = ContentToolResult
+  parent = ellmer::ContentToolResult
 )
 
 S7::method(print, BtwAgentToolResult) <- function(x, ...) {

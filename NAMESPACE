@@ -3,4 +3,5 @@
 export(TodoWrite)
 export(btw_tool_agent)
 export(kick)
+import(ellmer)
 import(rlang)

@@ -6,7 +6,7 @@
 #' @return A tool definition for todo list management
 #' @export
 TodoWrite <- function() {
-  tool(
+  ellmer::tool(
     function(todos) {
       the$todos <- todos
       format_todos(todos)
