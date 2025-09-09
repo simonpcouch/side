@@ -14,9 +14,12 @@ status](https://www.r-pkg.org/badges/version/side)](https://CRAN.R-project.org/p
 What if Claude Code was focused solely on R package development? And it
 was vibe-coded in an afternoon?
 
-This is a demo coding agent built with
+This is a demo of what’s possible when building coding agents with
 [btw](https://posit-dev.github.io/btw/). It’s mostly just a few `.md`
-files.
+files. There’s also a scrappy port of two features coming to btw soon,
+[agents as tools](https://github.com/posit-dev/btw/pull/77) and
+[memory](https://github.com/posit-dev/btw/pull/66); the implementations
+coming in that package are much more effective.
 
 Install with:
 
