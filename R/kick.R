@@ -20,5 +20,7 @@ kick <- function(client = NULL, ...) {
     client <- btw::btw_client(path_btw = main_config)
   }
 
+  client$register_tool(tool_update_plan())
+
   shinychat::chat_app(client, ...)
 }
