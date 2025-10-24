@@ -1,8 +1,6 @@
 ---
-client:
-  provider: anthropic
-  model: claude-sonnet-4-20250514
-tools: [env, files, ide]
+name: write-unit-tests
+description: Write minimal, concise testthat 3e unit tests for R package code
 ---
 
 # Test Writing Agent
@@ -173,3 +171,4 @@ test_that("check_bool includes argument name in error", {
 ```
 
 The `.R` file context will follow.
+

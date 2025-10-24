@@ -17,10 +17,31 @@ kick <- function(client = NULL, ...) {
         call = rlang::caller_env()
       )
     }
-    client <- btw::btw_client(path_btw = main_config)
+    
+    prompt_path <- append_skills(main_config)
+    client <- btw::btw_client(path_btw = prompt_path)
   }
 
   client$register_tool(tool_update_plan())
+  client$register_tool(tool_fetch_skill())
 
   shinychat::chat_app(client, ...)
+}
+
+append_skills <- function(prompt_path) {
+  main_prompt <- paste(readLines(prompt_path, warn = FALSE), collapse = "\n")
+  skills_section <- format_skills_section()
+  
+  if (!nzchar(skills_section)) {
+    return(prompt_path)
+  }
+  
+  # Append skills section to the prompt
+  full_prompt <- paste0(main_prompt, "\n\n", skills_section)
+  
+  # Create temporary file with full prompt
+  temp_prompt <- tempfile(fileext = ".md")
+  writeLines(full_prompt, temp_prompt)
+  
+  temp_prompt
 }

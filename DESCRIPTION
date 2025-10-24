@@ -18,7 +18,9 @@ Imports:
     mirai,
     promises,
     rlang (>= 1.1.0),
-    shinychat
+    shinychat,
+    yaml
 Remotes:
     posit-dev/btw,
     posit-dev/shinychat/pkg-r
+
