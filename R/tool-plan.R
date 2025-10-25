@@ -67,9 +67,6 @@ generate_plan_title <- function(steps, previous_plan) {
     return("Create plan")
   }
 
-  completed_step <- NULL
-  in_progress_step <- NULL
-
   previous_steps <- previous_plan$steps
 
   for (i in seq_along(steps)) {
@@ -77,49 +74,45 @@ generate_plan_title <- function(steps, previous_plan) {
     previous_status <- if (i <= length(previous_steps)) previous_steps[[i]]$status else NULL
 
     if (!is.null(previous_status) && previous_status != "completed" && current_status == "completed") {
-      completed_step <- steps[[i]]$description
-    }
-
-    if (current_status == "in_progress") {
-      previous_in_progress <- !is.null(previous_status) && previous_status == "in_progress"
-      if (!previous_in_progress) {
-        in_progress_step <- steps[[i]]$description
-      }
+      return(paste0("\u2705 ", steps[[i]]$description))
     }
   }
 
-  if (is.null(completed_step) && is.null(in_progress_step)) {
-    return("Create plan")
-  }
-
-  title_parts <- c()
-  if (!is.null(completed_step)) {
-    title_parts <- c(title_parts, paste0("\u2713 ", completed_step))
-  }
-  if (!is.null(in_progress_step)) {
-    title_parts <- c(title_parts, paste0("\u2192 ", in_progress_step))
-  }
-
-  paste(title_parts, collapse = "\n")
+  "Plan modified"
 }
 
 format_plan_display <- function(steps, intent = NULL) {
   status_icons <- c(
-    "pending" = "\u25cb",
-    "in_progress" = "\u2192",
-    "completed" = "\u2713"
+    "pending" = "\u26aa",
+    "in_progress" = "\u25b6\ufe0f",
+    "completed" = "\u2705"
   )
 
-  lines <- vapply(steps, function(step) {
+  n_total <- length(steps)
+  n_completed <- sum(vapply(steps, function(x) x$status == "completed", logical(1)))
+  pct_complete <- if (n_total > 0) round(100 * n_completed / n_total) else 0
+
+  bar_width <- 60
+  n_filled <- round(bar_width * n_completed / n_total)
+  n_empty <- bar_width - n_filled
+
+  lines <- vapply(seq_along(steps), function(i) {
+    step <- steps[[i]]
     icon <- status_icons[[step$status]]
-    paste0("- ", icon, " ", step$description)
+
+    desc <- if (step$status == "in_progress") {
+      paste0("**", step$description, "**")
+    } else {
+      step$description
+    }
+
+    paste0(i, ". ", icon, " ", desc)
   }, character(1))
 
-  result <- paste(lines, collapse = "\n")
-
-  if (!is.null(intent) && nzchar(intent)) {
-    result <- paste0("**Plan Update**\n", intent, "\n\n", result)
-  }
+  result <- paste0(
+    n_completed, " of ", n_total, " steps completed (", pct_complete, "%)\n\n",
+    paste(lines, collapse = "\n")
+  )
 
   result
 }
@@ -134,7 +127,8 @@ tool_update_plan <- function() {
       "or revise the plan mid-task.",
       "Each step should be a brief description (5-7 words).",
       "There should be exactly one 'in_progress' step at a time",
-      "(unless all steps are 'completed' or 'pending')."
+      "(unless all steps are 'completed' or 'pending').",
+      "Use _intent to briefly describe what you're moving on to next (and don't mention what you just completed--that will be handled by the UI automatically)."
     ),
     arguments = list(
       steps = ellmer::type_array(
@@ -149,7 +143,7 @@ tool_update_plan <- function() {
         description = "List of plan steps with descriptions and statuses"
       ),
       `_intent` = ellmer::type_string(
-        "Optional explanation for why the plan was revised (use when changing plan mid-task)"
+        "Brief description of what you're moving on to next. Do not mention the task that you just completed in this step, as that will be shown in the UI automatically."
       )
     ),
     convert = FALSE
