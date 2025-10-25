@@ -11,4 +11,4 @@ Future AI assistants should read the following documentation help-pages:
 * `btw::btw_client()`
 * `shinychat::chat_app()`
 
-Also, read the files in `R/` and `inst/context/`.
+Also, read the files in `R/` and `inst/sandbox/tool_results.md`.
