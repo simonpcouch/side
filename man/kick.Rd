@@ -2,20 +2,27 @@
 % Please edit documentation in R/kick.R
 \name{kick}
 \alias{kick}
-\title{Launch the side package development assistant}
+\title{Launch the \code{side::kick()} coding agent}
 \usage{
-kick(client = NULL, ...)
+kick(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1"))
 }
 \arguments{
-\item{client}{An optional \link[ellmer:Chat]{ellmer::Chat} client to use. If not provided,
-creates a btw client using the main agent configuration.}
+\item{client}{An \link[ellmer:Chat]{ellmer::Chat} client or provider/model string
+(e.g., \code{"anthropic/claude-sonnet-4-5"}) to power the \code{side::kick()} app.}
 
-\item{...}{Additional arguments passed to \code{\link[shinychat:chat_app]{shinychat::chat_app()}}}
+\item{...}{Currently ignored.}
+
+\item{host}{A character string specifying the host on which to run the app.
+Defaults to the value of \code{getOption("shiny.host", "127.0.0.1")}.}
 }
 \value{
-Launches a Shiny application for interactive package development
-assistance. Returns the result of \code{\link[shinychat:chat_app]{shinychat::chat_app()}} invisibly.
+Launches a shiny application as a background job in RStudio. The application
+is displayed in the RStudio viewer pane.
 }
 \description{
-Launch the side package development assistant
+Launch the \code{side::kick()} coding agent
+}
+\details{
+This function requires RStudio and will error if not running in RStudio.
+The app runs as a background job, leaving the console free for other work.
 }

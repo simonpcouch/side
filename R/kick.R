@@ -1,8 +1,10 @@
 #' Launch the `side::kick()` coding agent
 #'
+#' @param client An [ellmer::Chat] client or provider/model string
+#' (e.g., `"anthropic/claude-sonnet-4-5"`) to power the `side::kick()` app.
+#' @param ... Currently ignored.
 #' @param host A character string specifying the host on which to run the app.
 #'   Defaults to the value of `getOption("shiny.host", "127.0.0.1")`.
-#' @param ... Additional arguments passed to [shinychat::chat_app()]
 #'
 #' @return
 #' Launches a shiny application as a background job in RStudio. The application
@@ -13,8 +15,12 @@
 #' The app runs as a background job, leaving the console free for other work.
 #'
 #' @export
-kick <- function(host = getOption("shiny.host", "127.0.0.1"), ...) {
+kick <- function(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1")) {
   rstudioapi::verifyAvailable()
+
+  if (!is.null(client)) {
+    withr::local_options(side.client = client)
+  }
 
   port <- find_available_port()
   app_dir <- create_kick_dir()
@@ -71,6 +77,8 @@ create_kick_file <- function() {
   main_config <- system.file("agents", "main.md", package = "side")
   prompt_path <- append_skills(main_config)
 
+  client_code <- fetch_side_client(prompt_path)
+
   app_code <- glue::glue("
     cli::cli_alert_info('Welcome to `side::kick()`! You\\'ll be redirected back to the console shortly.')
 
@@ -82,8 +90,7 @@ create_kick_file <- function() {
     if (!requireNamespace('side', quietly = TRUE)) {{
       stop('side package must be installed')
     }}
-
-    client <- btw::btw_client(path_btw = '{prompt_path}')
+{client_code}
     client$register_tool(side:::tool_update_plan())
     client$register_tool(side:::tool_fetch_skill())
     side:::swap_read_text_file(client)
