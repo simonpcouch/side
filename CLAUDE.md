@@ -10,9 +10,10 @@ Future AI assistants should read the following documentation help-pages:
 * `btw::btw_tools()`
 * `btw::btw_client()`
 * `shinychat::chat_app()`
-* The `tool-ui` vignette from shinychat
 
-Also, read the files in `R/` and `inst/sandbox/tool_results.md`.
+Also, read the files in `R/`, `inst/sandbox/tool_results.md`, and `inst/sandbox/shinychat/pkg-r/vignettes/articles/tool-ui.Rmd`.
+
+You have the source code for the ellmer, shinychat, and btw repositories in subdirectories of `inst/sandbox/`. Use the source files as a reference when needed.
 
 ## Testing
 
