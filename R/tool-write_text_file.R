@@ -1,0 +1,225 @@
+write_text_file_impl <- function(path, old_str = NULL, new_str = NULL, insert_line = NULL, `_intent` = NULL) {
+  check_string(path)
+
+  str_replace_mode <- !is.null(old_str) && !is.null(new_str)
+  insert_mode <- !is.null(insert_line) && !is.null(new_str)
+
+  if (str_replace_mode && insert_mode) {
+    cli::cli_abort(
+      "Cannot use both str_replace mode (old_str/new_str) and insert mode (insert_line/new_str) at the same time.",
+      call = rlang::caller_env()
+    )
+  }
+
+  if (!str_replace_mode && !insert_mode) {
+    cli::cli_abort(
+      "Must provide either (old_str + new_str) for replacement or (insert_line + new_str) for insertion.",
+      call = rlang::caller_env()
+    )
+  }
+
+  file_exists <- file.exists(path)
+
+  if (!file_exists && str_replace_mode) {
+    cli::cli_abort(
+      "Cannot use str_replace mode on a file that doesn't exist. Use insert mode with insert_line=0 to create a new file.",
+      call = rlang::caller_env()
+    )
+  }
+
+  old_content <- if (file_exists) {
+    readLines(path, warn = FALSE)
+  } else {
+    character(0)
+  }
+
+  if (str_replace_mode) {
+    result <- handle_str_replace(old_content, old_str, new_str, path)
+  } else {
+    result <- handle_insert(old_content, insert_line, new_str, path)
+  }
+
+  dir_path <- dirname(path)
+  if (dir_path != "." && !dir.exists(dir_path)) {
+    dir.create(dir_path, recursive = TRUE)
+  }
+
+  writeLines(result$new_content, path)
+
+  diff_text <- create_diff_display(
+    result$removed_lines,
+    result$added_lines,
+    path,
+    result$context
+  )
+
+  value_text <- sprintf(
+    "%s %s (%d lines total)",
+    result$operation,
+    path,
+    length(result$new_content)
+  )
+
+  ellmer::ContentToolResult(
+    value = value_text,
+    extra = list(
+      path = path,
+      operation = result$operation,
+      display = list(
+        markdown = paste(diff_text, collapse = "\n"),
+        title = htmltools::HTML(sprintf(
+          "\u2705 %s <code>%s</code>",
+          result$operation,
+          basename(path)
+        )),
+        icon = "file-save",
+        show_request = FALSE
+      )
+    )
+  )
+}
+
+handle_str_replace <- function(old_content, old_str, new_str, path) {
+  old_content_text <- paste(old_content, collapse = "\n")
+
+  matches <- gregexpr(old_str, old_content_text, fixed = TRUE)[[1]]
+
+  if (length(matches) == 1 && matches[1] == -1) {
+    cli::cli_abort(
+      "No match found for old_str in {.path {path}}. Make sure the text matches exactly, including whitespace.",
+      call = rlang::caller_env()
+    )
+  }
+
+  if (length(matches) > 1) {
+    cli::cli_abort(
+      "Found {length(matches)} matches for old_str in {.path {path}}. Please provide more context to make the match unique.",
+      call = rlang::caller_env()
+    )
+  }
+
+  new_content_text <- sub(old_str, new_str, old_content_text, fixed = TRUE)
+  new_content <- strsplit(new_content_text, "\n", fixed = TRUE)[[1]]
+
+  old_str_lines <- strsplit(old_str, "\n", fixed = TRUE)[[1]]
+  new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
+
+  list(
+    new_content = new_content,
+    removed_lines = old_str_lines,
+    added_lines = new_str_lines,
+    operation = "Replaced text",
+    context = "str_replace"
+  )
+}
+
+handle_insert <- function(old_content, insert_line, new_str, path) {
+  if (insert_line < 0 || insert_line > length(old_content)) {
+    cli::cli_abort(
+      "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
+      call = rlang::caller_env()
+    )
+  }
+
+  new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
+
+  new_content <- c(
+    if (insert_line > 0) old_content[1:insert_line] else character(0),
+    new_str_lines,
+    if (insert_line < length(old_content)) old_content[(insert_line + 1):length(old_content)] else character(0)
+  )
+
+  operation <- if (length(old_content) == 0) {
+    "Created file"
+  } else {
+    sprintf("Inserted %d lines after line %d", length(new_str_lines), insert_line)
+  }
+
+  list(
+    new_content = new_content,
+    removed_lines = character(0),
+    added_lines = new_str_lines,
+    operation = operation,
+    context = sprintf("insert at line %d", insert_line)
+  )
+}
+
+create_diff_display <- function(removed_lines, added_lines, path, context) {
+  if (length(removed_lines) == 0 && length(added_lines) == 0) {
+    return("No changes")
+  }
+
+  diff_lines <- character()
+
+  if (length(removed_lines) > 0) {
+    for (line in removed_lines) {
+      diff_lines <- c(diff_lines, paste0("- ", line))
+    }
+  }
+
+  if (length(added_lines) > 0) {
+    for (line in added_lines) {
+      diff_lines <- c(diff_lines, paste0("+ ", line))
+    }
+  }
+
+  header <- sprintf("@@ %s: %s @@", basename(path), context)
+
+  c(
+    "```diff",
+    header,
+    diff_lines,
+    "```"
+  )
+}
+
+tool_write_text_file <- function() {
+  ellmer::tool(
+    write_text_file_impl,
+    name = "write_text_file",
+    description = paste(
+      "Write or edit a text file using one of two modes:",
+      "1. str_replace mode: Replace exact text matches (use old_str + new_str)",
+      "2. insert mode: Insert text at a line number (use insert_line + new_str)",
+      "You must use exactly one mode per call.",
+      "Use read_text_file first to see line numbers and existing content.",
+      "If you're not removing any lines, prefer insert mode over str_replace mode."
+    ),
+    arguments = list(
+      path = ellmer::type_string(
+        "Relative path to the file to write or edit."
+      ),
+      old_str = ellmer::type_string(
+        "For str_replace mode: The exact text to find and replace. Must match exactly, including whitespace and newlines.",
+        required = FALSE
+      ),
+      new_str = ellmer::type_string(
+        "The new text to insert. Used with either old_str (replacement) or insert_line (insertion).",
+        required = FALSE
+      ),
+      insert_line = ellmer::type_number(
+        "For insert mode: Line number after which to insert new_str (0 = beginning of file). Creates file if it doesn't exist.",
+        required = FALSE
+      ),
+      `_intent` = ellmer::type_string(
+        "Brief description of what changes you're making",
+        required = FALSE
+      )
+    ),
+    convert = FALSE
+  )
+}
+
+swap_write_text_file <- function(client) {
+  tools <- client$get_tools()
+
+  btw_write_name <- "btw_tool_files_write_text_file"
+  if (btw_write_name %in% names(tools)) {
+    tools[[btw_write_name]] <- NULL
+    client$set_tools(tools)
+  }
+
+  client$register_tool(tool_write_text_file())
+
+  invisible(client)
+}

@@ -24,6 +24,8 @@ kick <- function(client = NULL, ...) {
 
   client$register_tool(tool_update_plan())
   client$register_tool(tool_fetch_skill())
+  swap_read_text_file(client)
+  swap_write_text_file(client)
 
   shinychat::chat_app(client, ...)
 }
