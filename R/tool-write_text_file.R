@@ -50,7 +50,9 @@ write_text_file_impl <- function(path, old_str = NULL, new_str = NULL, insert_li
     result$removed_lines,
     result$added_lines,
     path,
-    result$context
+    result$context,
+    result$context_before,
+    result$context_after
   )
 
   value_text <- sprintf(
@@ -73,7 +75,8 @@ write_text_file_impl <- function(path, old_str = NULL, new_str = NULL, insert_li
           basename(path)
         )),
         icon = tool_icon("file-save"),
-        show_request = FALSE
+        show_request = FALSE,
+        open = TRUE
       )
     )
   )
@@ -104,12 +107,31 @@ handle_str_replace <- function(old_content, old_str, new_str, path) {
   old_str_lines <- strsplit(old_str, "\n", fixed = TRUE)[[1]]
   new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
 
+  match_pos <- matches[1]
+  chars_before <- substr(old_content_text, 1, match_pos - 1)
+  start_line <- length(strsplit(chars_before, "\n", fixed = TRUE)[[1]])
+  end_line <- start_line + length(old_str_lines) - 1
+
+  context_before <- if (start_line > 1) {
+    old_content[max(1, start_line - 3):(start_line - 1)]
+  } else {
+    character(0)
+  }
+
+  context_after <- if (end_line < length(old_content)) {
+    old_content[(end_line + 1):min(length(old_content), end_line + 3)]
+  } else {
+    character(0)
+  }
+
   list(
     new_content = new_content,
     removed_lines = old_str_lines,
     added_lines = new_str_lines,
     operation = "Edit",
-    context = "str_replace"
+    context = "str_replace",
+    context_before = context_before,
+    context_after = context_after
   )
 }
 
@@ -135,21 +157,41 @@ handle_insert <- function(old_content, insert_line, new_str, path) {
     "Edit"
   }
 
+  context_before <- if (insert_line > 0 && length(old_content) > 0) {
+    old_content[max(1, insert_line - 2):insert_line]
+  } else {
+    character(0)
+  }
+
+  context_after <- if (insert_line < length(old_content)) {
+    old_content[(insert_line + 1):min(length(old_content), insert_line + 3)]
+  } else {
+    character(0)
+  }
+
   list(
     new_content = new_content,
     removed_lines = character(0),
     added_lines = new_str_lines,
     operation = operation,
-    context = sprintf("insert at line %d", insert_line)
+    context = sprintf("insert at line %d", insert_line),
+    context_before = context_before,
+    context_after = context_after
   )
 }
 
-create_diff_display <- function(removed_lines, added_lines, path, context) {
+create_diff_display <- function(removed_lines, added_lines, path, context, context_before = character(0), context_after = character(0)) {
   if (length(removed_lines) == 0 && length(added_lines) == 0) {
     return("No changes")
   }
 
   diff_lines <- character()
+
+  if (length(context_before) > 0) {
+    for (line in context_before) {
+      diff_lines <- c(diff_lines, paste0("  ", line))
+    }
+  }
 
   if (length(removed_lines) > 0) {
     for (line in removed_lines) {
@@ -160,6 +202,12 @@ create_diff_display <- function(removed_lines, added_lines, path, context) {
   if (length(added_lines) > 0) {
     for (line in added_lines) {
       diff_lines <- c(diff_lines, paste0("+ ", line))
+    }
+  }
+
+  if (length(context_after) > 0) {
+    for (line in context_after) {
+      diff_lines <- c(diff_lines, paste0("  ", line))
     }
   }
 
