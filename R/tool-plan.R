@@ -1,9 +1,6 @@
 update_plan_impl <- function(steps, `_intent` = NULL) {
   validate_plan_steps(steps, call = rlang::caller_env())
 
-  previous_plan <- the$plan
-  title <- generate_plan_title(steps, previous_plan)
-
   the$plan <- list(
     steps = steps,
     last_updated = Sys.time()
@@ -15,8 +12,10 @@ update_plan_impl <- function(steps, `_intent` = NULL) {
     value = display_text,
     extra = list(
       display = list(
+        title = "Plan",
         markdown = display_text,
-        title = htmltools::HTML(title)
+        show_request = FALSE,
+        open = TRUE
       )
     )
   )
@@ -60,25 +59,6 @@ validate_plan_steps <- function(steps, call = rlang::caller_env()) {
   }
 
   invisible(NULL)
-}
-
-generate_plan_title <- function(steps, previous_plan) {
-  if (is.null(previous_plan)) {
-    return("Create plan")
-  }
-
-  previous_steps <- previous_plan$steps
-
-  for (i in seq_along(steps)) {
-    current_status <- steps[[i]]$status
-    previous_status <- if (i <= length(previous_steps)) previous_steps[[i]]$status else NULL
-
-    if (!is.null(previous_status) && previous_status != "completed" && current_status == "completed") {
-      return(paste0("\u2705 ", steps[[i]]$description))
-    }
-  }
-
-  "Plan modified"
 }
 
 format_plan_display <- function(steps, intent = NULL) {
@@ -146,6 +126,9 @@ tool_update_plan <- function() {
         "Brief description of what you're moving on to next. Do not mention the task that you just completed in this step, as that will be shown in the UI automatically."
       )
     ),
-    convert = FALSE
+    convert = FALSE,
+    annotations = ellmer::tool_annotations(
+      icon = tool_icon("new-label")
+    )
   )
 }
