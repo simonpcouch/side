@@ -1,5 +1,17 @@
 the <- rlang::new_environment()
 
+stash_last_kick <- function(client) {
+  the[[".last_kick"]] <- client
+  invisible(NULL)
+}
+
+get_last_kick <- function() {
+  if (rlang::env_has(the, ".last_kick")) {
+    return(rlang::env_get(the, ".last_kick"))
+  }
+  NULL
+}
+
 # ad-hoc check functions ------------------------------------------------------
 check_inherits <- function(
   x,

@@ -9,25 +9,44 @@
 #'
 #' @export
 kick <- function(client = NULL, ...) {
+  is_resumed <- FALSE
+
   if (is.null(client)) {
-    main_config <- system.file("agents", "main.md", package = "side")
-    if (!file.exists(main_config)) {
-      cli::cli_abort(
-        "Could not find main agent configuration at {.path {main_config}}",
-        call = rlang::caller_env()
-      )
+    client <- kick_client()
+
+    last_kick <- get_last_kick()
+    if (!is.null(last_kick) && rlang::is_interactive()) {
+      response <- readline("Resume previous session? (y/n): ")
+      if (tolower(trimws(response)) == "y") {
+        client <- last_kick
+        is_resumed <- TRUE
+      }
     }
-    
-    prompt_path <- append_skills(main_config)
-    client <- btw::btw_client(path_btw = prompt_path)
   }
 
-  client$register_tool(tool_update_plan())
-  client$register_tool(tool_fetch_skill())
-  swap_read_text_file(client)
-  swap_write_text_file(client)
+  if (!is_resumed) {
+    client$register_tool(tool_update_plan())
+    client$register_tool(tool_fetch_skill())
+    swap_read_text_file(client)
+    swap_write_text_file(client)
+  }
+
+  withr::defer(stash_last_kick(client))
 
   shinychat::chat_app(client, ...)
+}
+
+kick_client <- function(call = rlang::caller_env()) {
+  main_config <- system.file("agents", "main.md", package = "side")
+  if (!file.exists(main_config)) {
+    cli::cli_abort(
+      "Could not find main agent configuration at {.path {main_config}}",
+      call = call
+    )
+  }
+
+  prompt_path <- append_skills(main_config)
+  btw::btw_client(path_btw = prompt_path)
 }
 
 append_skills <- function(prompt_path) {

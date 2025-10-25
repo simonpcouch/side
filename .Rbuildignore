@@ -6,3 +6,4 @@
 CLAUDE.md
 .claude/
 inst/prompts
+inst/sandbox
