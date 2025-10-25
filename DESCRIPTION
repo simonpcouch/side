@@ -15,9 +15,12 @@ RoxygenNote: 7.3.3
 Imports:
     btw,
     ellmer,
+    glue,
+    httr2,
     mirai,
     promises,
     rlang (>= 1.1.0),
+    rstudioapi,
     shinychat,
     withr,
     yaml
