@@ -72,7 +72,7 @@ write_text_file_impl <- function(path, old_str = NULL, new_str = NULL, insert_li
           result$operation,
           basename(path)
         )),
-        icon = "file-save",
+        icon = tool_icon("file-save"),
         show_request = FALSE
       )
     )
@@ -108,7 +108,7 @@ handle_str_replace <- function(old_content, old_str, new_str, path) {
     new_content = new_content,
     removed_lines = old_str_lines,
     added_lines = new_str_lines,
-    operation = "Replaced text",
+    operation = "Edit",
     context = "str_replace"
   )
 }
@@ -130,9 +130,9 @@ handle_insert <- function(old_content, insert_line, new_str, path) {
   )
 
   operation <- if (length(old_content) == 0) {
-    "Created file"
+    "Create"
   } else {
-    sprintf("Inserted %d lines after line %d", length(new_str_lines), insert_line)
+    "Edit"
   }
 
   list(
