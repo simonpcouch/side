@@ -25,12 +25,18 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
   }
   
   skill_text <- paste(skill_content[content_start:length(skill_content)], collapse = "\n")
-  
+
   ellmer::ContentToolResult(
     value = skill_text,
     extra = list(
       display = list(
-        markdown = paste0("**Fetched skill:** ", skill_name, "\n\n", skill_text)
+        markdown = skill_text,
+        title = htmltools::HTML(sprintf(
+          "Skill: <code>%s</code>",
+          skill_name
+        )),
+        icon = tool_icon("globe-book"),
+        open = TRUE
       )
     )
   )
