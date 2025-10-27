@@ -10,7 +10,7 @@ sidekick_tools <- function(socket_url = NULL) {
   )
 
   if (!is.null(socket_url)) {
-    tools_to_reroute <- lapply(tools_to_reroute, reroute_env_tool, socket_url = socket_url)
+    tools_to_reroute <- lapply(tools_to_reroute, reroute_tool, socket_url = socket_url)
   }
 
   c(
