@@ -21,7 +21,6 @@ fetch_side_client <- function(prompt_path) {
     client <- ellmer::chat()
     system_prompt <- paste(readLines('{prompt_path}', warn = FALSE), collapse = '\\n')
     client$set_system_prompt(system_prompt)
-    client$set_tools(btw::btw_tools())
     "))
   }
 
@@ -29,6 +28,5 @@ fetch_side_client <- function(prompt_path) {
     client <- ellmer::chat('{provider_model}')
     system_prompt <- paste(readLines('{prompt_path}', warn = FALSE), collapse = '\\n')
     client$set_system_prompt(system_prompt)
-    client$set_tools(btw::btw_tools())
   ")
 }

@@ -270,7 +270,7 @@ swap_write_text_file <- function(client, socket_url = NULL) {
   custom_tool <- tool_write_text_file()
 
   if (!is.null(socket_url)) {
-    custom_tool <- reroute_env_tool(custom_tool, socket_url)
+    custom_tool <- reroute_tool(custom_tool, socket_url)
   }
 
   client$register_tool(custom_tool)

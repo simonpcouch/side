@@ -1,4 +1,7 @@
-reroute_env_tool <- function(tool, socket_url) {
+# Some tools depend on accessing specifically the right working directory
+# or R environment. This tool reroutes those tool calls to be evaluated in the 
+# right context via nanonext to do so.
+reroute_tool <- function(tool, socket_url) {
   check_inherits(tool, "ellmer::ToolDef")
   check_string(socket_url)
 
@@ -42,60 +45,12 @@ reroute_env_tool <- function(tool, socket_url) {
   tool
 }
 
-swap_env_tools <- function(client, socket_url) {
-  check_inherits(client, "Chat")
-  check_string(socket_url)
-
-  tools <- client$get_tools()
-  env_tool_names <- names(btw::btw_tools("env"))
-
-  for (tool_name in env_tool_names) {
-    if (tool_name %in% names(tools)) {
-      tools[[tool_name]] <- reroute_env_tool(tools[[tool_name]], socket_url)
-    }
-  }
-
-  client$set_tools(tools)
-  invisible(client)
-}
-
-swap_file_tools <- function(client, socket_url) {
-  check_inherits(client, "Chat")
-  check_string(socket_url)
-
-  tools <- client$get_tools()
-  file_tool_names <- names(btw::btw_tools("files"))
-
-  for (tool_name in file_tool_names) {
-    if (tool_name %in% names(tools)) {
-      tools[[tool_name]] <- reroute_env_tool(tools[[tool_name]], socket_url)
-    }
-  }
-
-  client$set_tools(tools)
-  invisible(client)
-}
-
 start_env_tool_server <- function(url) {
   check_string(url)
 
   sock <- nanonext::socket("rep", listen = url)
 
-  env_tools <- btw::btw_tools("env")
-  file_tools <- btw::btw_tools("files")
-  custom_read <- tool_read_text_file()
-  custom_write <- tool_write_text_file()
-  code_search <- btw::btw_tool_files_code_search
-
-  all_tools <- c(
-    env_tools,
-    file_tools,
-    list(
-      read_text_file = custom_read,
-      write_text_file = custom_write,
-      btw_tool_files_code_search = code_search
-    )
-  )
+  all_tools <- sidekick_tools()
 
   the$env_server_socket <- sock
   the$env_server_active <- TRUE

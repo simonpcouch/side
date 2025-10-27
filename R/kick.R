@@ -77,41 +77,18 @@ create_kick_dir <- function(env_url) {
 }
 
 create_kick_file <- function(env_url) {
-  temp_file <- tempfile(fileext = ".R")
+  template_path <- system.file("client.R", package = "side")
+  template <- paste(readLines(template_path, warn = FALSE), collapse = "\n")
 
   main_config <- system.file("agents", "main.md", package = "side")
   prompt_path <- append_skills(main_config)
-
   client_code <- fetch_side_client(prompt_path)
 
-  app_code <- glue::glue("
-    cli::cli_alert_info('Welcome to `side::kick()`! You\\'ll be redirected back to the console shortly.')
+  app_code <- template
+  app_code <- gsub("{{client_code}}", client_code, app_code, fixed = TRUE)
+  app_code <- gsub("{{env_url}}", env_url, app_code, fixed = TRUE)
 
-    library(btw)
-    library(ellmer)
-    library(shinychat)
-
-    # Load side namespace for tool functions
-    if (!requireNamespace('side', quietly = TRUE)) {{
-      stop('side package must be installed')
-    }}
-{client_code}
-    client$register_tool(side:::tool_update_plan())
-    client$register_tool(side:::tool_fetch_skill())
-    side:::swap_env_tools(client, '{env_url}')
-    side:::swap_file_tools(client, '{env_url}')
-    side:::swap_read_text_file(client, '{env_url}')
-    side:::swap_write_text_file(client, '{env_url}')
-
-    code_search_tool <- side:::reroute_env_tool(
-      btw::btw_tool_files_code_search,
-      '{env_url}'
-    )
-    client$register_tool(code_search_tool)
-
-    shinychat::chat_app(client)
-  ")
-
+  temp_file <- tempfile(fileext = ".R")
   writeLines(app_code, temp_file)
   temp_file
 }
