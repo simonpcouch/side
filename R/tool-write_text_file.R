@@ -1,4 +1,4 @@
-write_text_file_impl <- function(path, old_str = NULL, new_str = NULL, insert_line = NULL, `_intent` = NULL) {
+write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_str = NULL, `_intent` = NULL) {
   check_string(path)
 
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
@@ -226,27 +226,29 @@ tool_write_text_file <- function() {
     write_text_file_impl,
     name = "write_text_file",
     description = paste(
-      "Write or edit a text file using one of two modes:",
-      "1. str_replace mode: Replace exact text matches (use old_str + new_str)",
-      "2. insert mode: Insert text at a line number (use insert_line + new_str)",
-      "You must use exactly one mode per call.",
-      "Use read_text_file first to see line numbers and existing content.",
-      "If you're not removing any lines, prefer insert mode over str_replace mode."
+      "Write or edit a text file. You must use exactly one of two modes:",
+      "1. insert (insert_line) mode (PREFERRED when no lines will be deleted): Insert text at a line number (use insert_line + new_str).",
+      "   Use this when adding new content without removing existing lines.",
+      "   Line numbers come from read_text_file output.",
+      "2. replace (old_str) MODE: Replace exact text matches (use old_str + new_str).",
+      "   Only use this when you need to remove or modify existing lines.",
+      "   old_str must match exactly, including all whitespace and newlines.",
+      "Always call read_text_file first to see line numbers and existing content."
     ),
     arguments = list(
       path = ellmer::type_string(
         "Relative path to the file to write or edit."
       ),
-      old_str = ellmer::type_string(
-        "For str_replace mode: The exact text to find and replace. Must match exactly, including whitespace and newlines.",
+      insert_line = ellmer::type_number(
+        "For INSERT mode (PREFERRED when no lines are deleted): Line number after which to insert new_str (0 = beginning of file). Creates file if it doesn't exist.",
         required = FALSE
       ),
       new_str = ellmer::type_string(
-        "The new text to insert. Used with either old_str (replacement) or insert_line (insertion).",
+        "The new text to insert or use as replacement. Required for both modes.",
         required = FALSE
       ),
-      insert_line = ellmer::type_number(
-        "For insert mode: Line number after which to insert new_str (0 = beginning of file). Creates file if it doesn't exist.",
+      old_str = ellmer::type_string(
+        "For REPLACE mode only: The exact text to find and replace. Must match exactly, including whitespace and newlines. Only use when removing/modifying existing lines.",
         required = FALSE
       ),
       `_intent` = ellmer::type_string(
