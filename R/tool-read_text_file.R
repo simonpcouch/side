@@ -74,7 +74,7 @@ tool_read_text_file <- function() {
   )
 }
 
-swap_read_text_file <- function(client) {
+swap_read_text_file <- function(client, socket_url = NULL) {
   tools <- client$get_tools()
 
   btw_read_name <- "btw_tool_files_read_text_file"
@@ -83,7 +83,13 @@ swap_read_text_file <- function(client) {
     client$set_tools(tools)
   }
 
-  client$register_tool(tool_read_text_file())
+  custom_tool <- tool_read_text_file()
+
+  if (!is.null(socket_url)) {
+    custom_tool <- reroute_env_tool(custom_tool, socket_url)
+  }
+
+  client$register_tool(custom_tool)
 
   invisible(client)
 }

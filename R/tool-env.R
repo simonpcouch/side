@@ -59,19 +59,50 @@ swap_env_tools <- function(client, socket_url) {
   invisible(client)
 }
 
+swap_file_tools <- function(client, socket_url) {
+  check_inherits(client, "Chat")
+  check_string(socket_url)
+
+  tools <- client$get_tools()
+  file_tool_names <- names(btw::btw_tools("files"))
+
+  for (tool_name in file_tool_names) {
+    if (tool_name %in% names(tools)) {
+      tools[[tool_name]] <- reroute_env_tool(tools[[tool_name]], socket_url)
+    }
+  }
+
+  client$set_tools(tools)
+  invisible(client)
+}
+
 start_env_tool_server <- function(url) {
   check_string(url)
 
   sock <- nanonext::socket("rep", listen = url)
 
   env_tools <- btw::btw_tools("env")
+  file_tools <- btw::btw_tools("files")
+  custom_read <- tool_read_text_file()
+  custom_write <- tool_write_text_file()
+  code_search <- btw::btw_tool_files_code_search
+
+  all_tools <- c(
+    env_tools,
+    file_tools,
+    list(
+      read_text_file = custom_read,
+      write_text_file = custom_write,
+      btw_tool_files_code_search = code_search
+    )
+  )
 
   the$env_server_socket <- sock
   the$env_server_active <- TRUE
 
   later::later(
     function() {
-      service_env_requests(sock, env_tools)
+      service_env_requests(sock, all_tools)
     },
     delay = 0.1
   )
@@ -79,7 +110,7 @@ start_env_tool_server <- function(url) {
   invisible(sock)
 }
 
-service_env_requests <- function(sock, env_tools) {
+service_env_requests <- function(sock, all_tools) {
   if (!isTRUE(the$env_server_active)) {
     return()
   }
@@ -92,8 +123,8 @@ service_env_requests <- function(sock, env_tools) {
       tool_name <- request$tool_name
       args <- request$arguments
 
-      if (tool_name %in% names(env_tools)) {
-        tool <- env_tools[[tool_name]]
+      if (tool_name %in% names(all_tools)) {
+        tool <- all_tools[[tool_name]]
         tool_fun <- S7::S7_data(tool)
 
         tryCatch(
@@ -114,7 +145,7 @@ service_env_requests <- function(sock, env_tools) {
 
   later::later(
     function() {
-      service_env_requests(sock, env_tools)
+      service_env_requests(sock, all_tools)
     },
     delay = 0.1
   )

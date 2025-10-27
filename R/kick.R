@@ -98,9 +98,16 @@ create_kick_file <- function(env_url) {
 {client_code}
     client$register_tool(side:::tool_update_plan())
     client$register_tool(side:::tool_fetch_skill())
-    side:::swap_read_text_file(client)
-    side:::swap_write_text_file(client)
     side:::swap_env_tools(client, '{env_url}')
+    side:::swap_file_tools(client, '{env_url}')
+    side:::swap_read_text_file(client, '{env_url}')
+    side:::swap_write_text_file(client, '{env_url}')
+
+    code_search_tool <- side:::reroute_env_tool(
+      btw::btw_tool_files_code_search,
+      '{env_url}'
+    )
+    client$register_tool(code_search_tool)
 
     shinychat::chat_app(client)
   ")
