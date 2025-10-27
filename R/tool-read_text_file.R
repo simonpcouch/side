@@ -51,7 +51,8 @@ tool_read_text_file <- function() {
     description = paste(
       "Read a text file with line numbers.",
       "Each line is prefixed with its line number (e.g., '1: first line').",
-      "Use line numbers when editing files with the write tool."
+      "Use line numbers when editing files with the write tool.",
+      "Be sure that you know the file exists---maybe via listing files or code search---before calling this tool on it."
     ),
     arguments = list(
       path = ellmer::type_string(
