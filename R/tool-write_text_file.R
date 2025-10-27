@@ -226,7 +226,12 @@ tool_write_text_file <- function() {
     write_text_file_impl,
     name = "write_text_file",
     description = paste(
-      "Write or edit a text file. You must use exactly one of two modes:",
+      "Write or edit text files that are requested by the user or required for their project.",
+      "NEVER create files for internal purposes (planning, notes, scratch work).",
+      "Use update_plan for tracking progress, not files.",
+      "Always prefer editing existing files over creating new ones.",
+      "",
+      "You must use exactly one of two modes:",
       "1. insert (insert_line) mode (PREFERRED when no lines will be deleted): Insert text at a line number (use insert_line + new_str).",
       "   Use this when adding new content without removing existing lines.",
       "   Line numbers come from read_text_file output.",
