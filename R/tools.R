@@ -5,7 +5,8 @@ sidekick_tools <- function(socket_url = NULL) {
     btw::btw_tools("btw_tool_files_code_search"),
     list(
       read_text_file = tool_read_text_file(),
-      write_text_file = tool_write_text_file()
+      write_text_file = tool_write_text_file(),
+      shell = tool_shell()
     )
   )
 
@@ -15,7 +16,6 @@ sidekick_tools <- function(socket_url = NULL) {
 
   c(
     btw::btw_tools("docs"),
-    btw::btw_tools("git"),
     btw::btw_tools("github"),
     btw::btw_tools("ide"),
     btw::btw_tools("search"),
