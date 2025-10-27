@@ -1,0 +1,44 @@
+.approval-request-wrapper {
+  margin: 1rem 0;
+  border-left: 4px solid #e0e0e0;
+  background-color: #ffffff;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.approval-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin: 0.2rem 0.75rem 0.75rem 0.75rem;
+  justify-content: flex-start;
+}
+
+.approval-reject {
+  background-color: #f5f5f5;
+  border: none;
+  color: #dc3545;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.approval-reject:hover {
+  background-color: #e8e8e8;
+}
+
+.approval-approve {
+  background-color: #f5f5f5;
+  border: none;
+  color: #28a745;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.approval-approve:hover {
+  background-color: #e8e8e8;
+}

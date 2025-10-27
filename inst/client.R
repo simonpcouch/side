@@ -31,6 +31,7 @@ ui <- function(req) {
   bslib::page_fillable(
     tags$head(
       tags$script(src = "side/tool-approval.js"),
+      tags$link(rel = "stylesheet", href = "side/tool-approval.css"),
       tags$style(HTML("
         .chat-menu-btn {
           position: fixed;

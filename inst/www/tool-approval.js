@@ -1,11 +1,6 @@
 $(document).ready(function() {
   Shiny.addCustomMessageHandler("show-approval-message", function(data) {
-    var approvalId = "approval-" + data.request_id;
-
-    var html = '<div id="' + approvalId + '" style="display: flex; gap: 0.5rem; margin: 0.5rem; padding: 0.5rem; align-items: center;">' +
-      '<button class="btn btn-sm approval-reject" data-request-id="' + data.request_id + '" style="background-color: #f8f9fa; border: 1px solid #dee2e6; color: #dc3545; font-weight: 500; padding: 0.375rem 0.75rem;">Reject</button>' +
-      '<button class="btn btn-sm approval-approve" data-request-id="' + data.request_id + '" style="background-color: #f8f9fa; border: 1px solid #dee2e6; color: #28a745; font-weight: 500; padding: 0.375rem 0.75rem;">Approve</button>' +
-    '</div>';
+    var approvalWrapperId = "approval-wrapper-" + data.request_id;
 
     var container = $("shiny-chat-messages");
 
@@ -13,28 +8,42 @@ $(document).ready(function() {
       return;
     }
 
-    // Wait a bit for the tool request UI to render first
+    // Wait a bit for any pending UI updates
     setTimeout(function() {
-      // Insert AFTER the container, not inside it
-      container.after(html);
+      // Create wrapper div for the tool card + approval buttons
+      var wrapper = $('<div id="' + approvalWrapperId + '" class="approval-request-wrapper"></div>');
 
-      var inserted = $("#" + approvalId);
+      // Insert the shinychat tool card HTML
+      wrapper.append(data.tool_card_html);
 
-      // Bind click handlers after appending
-      $("#" + approvalId + " .approval-reject").on("click", function() {
+      // Create approval buttons container
+      var buttonsHtml = '<div class="approval-buttons">' +
+        '<button class="btn btn-sm approval-reject" data-request-id="' + data.request_id + '">Reject</button>' +
+        '<button class="btn btn-sm approval-approve" data-request-id="' + data.request_id + '">Approve</button>' +
+        '</div>';
+
+      wrapper.append(buttonsHtml);
+
+      // Insert after chat messages container
+      container.after(wrapper);
+
+      // Bind click handlers
+      wrapper.find(".approval-reject").on("click", function() {
         var requestId = $(this).data("request-id");
-        $("#" + approvalId).fadeOut(200);
+        $("#" + approvalWrapperId).fadeOut(200, function() {
+          $(this).remove();
+        });
         Shiny.setInputValue('tool_approval_response', {
           request_id: requestId,
           approved: false
         }, {priority: 'event'});
       });
 
-      $("#" + approvalId + " .approval-approve").on("click", function() {
+      wrapper.find(".approval-approve").on("click", function() {
         var requestId = $(this).data("request-id");
-
-        $("#" + approvalId).fadeOut(200);
-
+        $("#" + approvalWrapperId).fadeOut(200, function() {
+          $(this).remove();
+        });
         Shiny.setInputValue('tool_approval_response', {
           request_id: requestId,
           approved: true
@@ -44,7 +53,9 @@ $(document).ready(function() {
   });
 
   Shiny.addCustomMessageHandler("hide-approval-message", function(data) {
-    var approvalId = "approval-" + data.request_id;
-    $("#" + approvalId).fadeOut(200);
+    var approvalWrapperId = "approval-wrapper-" + data.request_id;
+    $("#" + approvalWrapperId).fadeOut(200, function() {
+      $(this).remove();
+    });
   });
 });
