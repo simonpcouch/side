@@ -102,12 +102,43 @@ ui <- function(req) {
       "close_btn",
       label = "",
       class = "btn-close close-btn"
-    )
+    ),
+    tags$script(HTML("
+      let interruptRequested = false;
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !interruptRequested) {
+          interruptRequested = true;
+          Shiny.setInputValue('interrupt_requested', Math.random(), {priority: 'event'});
+        }
+      });
+    "))
   )
 }
 
 server <- function(input, output, session) {
-  chat_server <- shinychat::chat_mod_server("chat", client)
+  interrupt_flag <- reactiveVal(FALSE)
+  
+  chat_server <- side:::chat_mod_server_interruptible("chat", client, interrupt_flag)
+  
+  observeEvent(input$interrupt_requested, {
+    if (!interrupt_flag()) {
+      interrupt_flag(TRUE)
+      chat_server$update_user_input(placeholder = "Interrupted--type to continue")
+    }
+  })
+
+  observeEvent(chat_server$last_input(), {
+    req(chat_server$last_input())
+    chat_server$update_user_input(placeholder = "Esc to interrupt")
+  })
+
+  observeEvent(chat_server$last_turn(), {
+    req(chat_server$last_turn())
+    if (!interrupt_flag()) {
+      chat_server$update_user_input(placeholder = "Enter a message")
+    }
+  })
 
   menu_trigger <- reactiveVal(0)
 
@@ -224,6 +255,8 @@ server <- function(input, output, session) {
         current_file(filepath)
       }
     }
+    
+    side:::stash_last_kick(client)
   })
 }
 

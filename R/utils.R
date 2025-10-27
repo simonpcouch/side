@@ -256,6 +256,70 @@ delete_oldest_chats <- function(path = getwd(), persist = NULL) {
 }
 
 
+
+# interrupt handling ----------------------------------------------------------
+
+clean_incomplete_tool_requests <- function(client) {
+  turns <- client$get_turns()
+  if (length(turns) == 0) {
+    return(invisible(client))
+  }
+
+  last_turn <- turns[[length(turns)]]
+  if (last_turn@role != "assistant") {
+    return(invisible(client))
+  }
+
+  contents <- last_turn@contents
+  requests <- Filter(function(c) S7::S7_inherits(c, ellmer::ContentToolRequest), contents)
+  results <- Filter(function(c) S7::S7_inherits(c, ellmer::ContentToolResult), contents)
+
+  if (length(requests) == 0) {
+    return(invisible(client))
+  }
+
+  result_ids <- character(0)
+  if (length(results) > 0) {
+    result_ids <- vapply(results, function(r) {
+      if (!is.null(r@request) && !is.null(r@request@id)) {
+        r@request@id
+      } else {
+        NA_character_
+      }
+    }, character(1))
+    result_ids <- result_ids[!is.na(result_ids)]
+  }
+
+  incomplete_ids <- character(0)
+  for (req in requests) {
+    if (!is.null(req@id) && !(req@id %in% result_ids)) {
+      incomplete_ids <- c(incomplete_ids, req@id)
+    }
+  }
+
+  if (length(incomplete_ids) == 0) {
+    return(invisible(client))
+  }
+
+  new_contents <- Filter(
+    function(c) {
+      if (S7::S7_inherits(c, ellmer::ContentToolRequest)) {
+        !is.null(c@id) && !(c@id %in% incomplete_ids)
+      } else {
+        TRUE
+      }
+    },
+    contents
+  )
+
+  last_turn@contents <- new_contents
+  turns[[length(turns)]] <- last_turn
+  client$set_turns(turns)
+
+  invisible(client)
+}
+
+
 # ad-hoc check functions ------------------------------------------------------
 check_inherits <- function(
   x,
