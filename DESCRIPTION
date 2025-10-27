@@ -14,8 +14,12 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Imports:
     btw,
+    cli,
+    coro,
     ellmer,
+    fastmap,
     glue,
+    htmltools,
     httr2,
     later,
     mirai,
@@ -23,6 +27,7 @@ Imports:
     promises,
     rlang (>= 1.1.0),
     rstudioapi,
+    shiny,
     shinychat,
     withr,
     yaml

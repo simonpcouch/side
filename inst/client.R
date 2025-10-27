@@ -10,6 +10,8 @@ if (!requireNamespace('side', quietly = TRUE)) {
   stop('side package must be installed')
 }
 
+addResourcePath("side", system.file("www", package = "side"))
+
 working_dir <- '{{working_dir}}'
 .persist <- {{persist}}
 
@@ -28,6 +30,7 @@ current_file <- shiny::reactiveVal(if (length(chat_files) > 0) chat_files[1] els
 ui <- function(req) {
   bslib::page_fillable(
     tags$head(
+      tags$script(src = "side/tool-approval.js"),
       tags$style(HTML("
         .chat-menu-btn {
           position: fixed;
@@ -117,8 +120,23 @@ ui <- function(req) {
 }
 
 server <- function(input, output, session) {
+  session$userData$approval_resolvers <- fastmap::fastmap()
+
+  observeEvent(input$tool_approval_response, {
+    response_data <- input$tool_approval_response
+    request_id <- response_data$request_id
+
+    resolver <- session$userData$approval_resolvers$get(request_id)
+    if (!is.null(resolver)) {
+      resolver(response_data$approved)
+      session$userData$approval_resolvers$remove(request_id)
+    }
+  })
+
+  side:::setup_tool_approval_callback(client, session)
+
   interrupt_flag <- reactiveVal(FALSE)
-  
+
   chat_server <- side:::chat_mod_server_interruptible("chat", client, interrupt_flag)
   
   observeEvent(input$interrupt_requested, {
