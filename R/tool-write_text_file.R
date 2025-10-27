@@ -1,29 +1,38 @@
-write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_str = NULL, `_intent` = NULL) {
-  check_string(path)
-
+validate_write_text_file_syntax <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
+  # Syntax-only validation (no file I/O) - safe to run before approval
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
   if (str_replace_mode && insert_mode) {
     cli::cli_abort(
       "Cannot use both str_replace mode (old_str/new_str) and insert mode (insert_line/new_str) at the same time.",
-      call = rlang::caller_env()
+      call = call
     )
   }
 
   if (!str_replace_mode && !insert_mode) {
     cli::cli_abort(
       "Must provide either (old_str + new_str) for replacement or (insert_line + new_str) for insertion.",
-      call = rlang::caller_env()
+      call = call
     )
   }
+
+  invisible(NULL)
+}
+
+validate_write_text_file_request <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
+  # Full validation including file I/O - runs when tool executes in correct working directory
+  validate_write_text_file_syntax(path, insert_line, new_str, old_str, call = call)
+
+  str_replace_mode <- !is.null(old_str) && !is.null(new_str)
+  insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
   file_exists <- file.exists(path)
 
   if (!file_exists && str_replace_mode) {
     cli::cli_abort(
       "Cannot use str_replace mode on a file that doesn't exist. Use insert mode with insert_line=0 to create a new file.",
-      call = rlang::caller_env()
+      call = call
     )
   }
 
@@ -32,6 +41,47 @@ write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_s
   } else {
     character(0)
   }
+
+  # Validate str_replace mode: check that old_str exists and is unique
+  if (str_replace_mode && file_exists) {
+    old_content_text <- paste(old_content, collapse = "\n")
+    matches <- gregexpr(old_str, old_content_text, fixed = TRUE)[[1]]
+
+    if (length(matches) == 1 && matches[1] == -1) {
+      cli::cli_abort(
+        "No match found for old_str in {.path {path}}. Make sure the text matches exactly, including whitespace.",
+        call = call
+      )
+    }
+
+    if (length(matches) > 1) {
+      cli::cli_abort(
+        "Found {length(matches)} matches for old_str in {.path {path}}. Please provide more context to make the match unique.",
+        call = call
+      )
+    }
+  }
+
+  # Validate insert mode: check insert_line is in valid range
+  if (insert_mode && file_exists) {
+    if (insert_line < 0 || insert_line > length(old_content)) {
+      cli::cli_abort(
+        "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
+        call = call
+      )
+    }
+  }
+
+  old_content
+}
+
+write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_str = NULL, `_intent` = NULL) {
+  check_string(path)
+
+  old_content <- validate_write_text_file_request(path, insert_line, new_str, old_str, call = rlang::caller_env())
+
+  str_replace_mode <- !is.null(old_str) && !is.null(new_str)
+  insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
   if (str_replace_mode) {
     result <- handle_str_replace(old_content, old_str, new_str, path)
@@ -84,22 +134,7 @@ write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_s
 
 handle_str_replace <- function(old_content, old_str, new_str, path) {
   old_content_text <- paste(old_content, collapse = "\n")
-
   matches <- gregexpr(old_str, old_content_text, fixed = TRUE)[[1]]
-
-  if (length(matches) == 1 && matches[1] == -1) {
-    cli::cli_abort(
-      "No match found for old_str in {.path {path}}. Make sure the text matches exactly, including whitespace.",
-      call = rlang::caller_env()
-    )
-  }
-
-  if (length(matches) > 1) {
-    cli::cli_abort(
-      "Found {length(matches)} matches for old_str in {.path {path}}. Please provide more context to make the match unique.",
-      call = rlang::caller_env()
-    )
-  }
 
   new_content_text <- sub(old_str, new_str, old_content_text, fixed = TRUE)
   new_content <- strsplit(new_content_text, "\n", fixed = TRUE)[[1]]
@@ -136,13 +171,6 @@ handle_str_replace <- function(old_content, old_str, new_str, path) {
 }
 
 handle_insert <- function(old_content, insert_line, new_str, path) {
-  if (insert_line < 0 || insert_line > length(old_content)) {
-    cli::cli_abort(
-      "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
-      call = rlang::caller_env()
-    )
-  }
-
   new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
 
   new_content <- c(

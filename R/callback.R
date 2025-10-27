@@ -14,6 +14,25 @@ setup_tool_approval_callback <- function(
       return(invisible(NULL))
     }
 
+    # Validate syntax before showing approval UI (no file I/O)
+    if (request@name == "write_text_file") {
+      args <- request@arguments
+      tryCatch(
+        {
+          validate_write_text_file_syntax(
+            args$path,
+            args$insert_line,
+            args$new_str,
+            args$old_str,
+            call = rlang::current_env()
+          )
+        },
+        error = function(e) {
+          ellmer::tool_reject(conditionMessage(e))
+        }
+      )
+    }
+
     request_id <- request@id
 
     if (is.null(session) || is.null(session$userData$approval_resolvers)) {
@@ -96,70 +115,165 @@ create_write_file_preview <- function(request) {
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
   file_exists <- file.exists(path)
+
+  if (!file_exists && str_replace_mode) {
+    return(create_write_file_summary_preview(request))
+  }
+
   old_content <- if (file_exists) {
     readLines(path, warn = FALSE)
   } else {
     character(0)
   }
 
+  # Validate str_replace mode: check that old_str exists and is unique
+  if (str_replace_mode && file_exists) {
+    old_content_text <- paste(old_content, collapse = "\n")
+    matches <- gregexpr(old_str, old_content_text, fixed = TRUE)[[1]]
+
+    if (length(matches) == 1 && matches[1] == -1) {
+      return(create_write_file_summary_preview(request))
+    }
+
+    if (length(matches) > 1) {
+      return(create_write_file_summary_preview(request))
+    }
+  }
+
+  # Validate insert mode: check insert_line is in valid range
+  if (insert_mode && file_exists) {
+    if (insert_line < 0 || insert_line > length(old_content)) {
+      return(create_write_file_summary_preview(request))
+    }
+  }
+
+  # Try to generate the full diff preview
   tryCatch({
     if (str_replace_mode) {
       result <- handle_str_replace(old_content, old_str, new_str, path)
-    } else if (insert_mode) {
-      result <- handle_insert(old_content, insert_line, new_str, path)
     } else {
-      return(format(htmltools::as.tags(shinychat::contents_shinychat(request))))
+      result <- handle_insert(old_content, insert_line, new_str, path)
     }
 
-    diff_text <- create_diff_display(
-      result$removed_lines,
-      result$added_lines,
-      path,
-      result$context,
-      result$context_before,
-      result$context_after
-    )
+  diff_text <- create_diff_display(
+    result$removed_lines,
+    result$added_lines,
+    path,
+    result$context,
+    result$context_before,
+    result$context_after
+  )
 
-    diff_md <- paste(diff_text, collapse = "\n")
+  diff_md <- paste(diff_text, collapse = "\n")
 
-    title <- htmltools::HTML(sprintf(
-      "%s <code>%s</code>",
-      result$operation,
-      basename(path)
-    ))
+  title <- htmltools::HTML(sprintf(
+    "%s <code>%s</code>",
+    result$operation,
+    basename(path)
+  ))
 
-    # Create the preview content with diff
-    preview_content <- htmltools::tagList(
+  # Create the preview content with diff
+  preview_content <- htmltools::tagList(
+    htmltools::tags$div(
+      class = "write-file-preview",
+      style = "padding: 0.5rem;",
       htmltools::tags$div(
-        class = "write-file-preview",
-        style = "padding: 0.5rem;",
-        htmltools::tags$div(
-          class = "preview-title",
-          style = "font-weight: 600; margin-bottom: 0.5rem;",
-          title
-        ),
-        htmltools::tag(
-          "shiny-markdown-stream",
-          list(
-            content = diff_md,
-            "content-type" = "markdown",
-            streaming = "false"
-          )
+        class = "preview-title",
+        style = "font-weight: 600; margin-bottom: 0.5rem;",
+        title
+      ),
+      htmltools::tag(
+        "shiny-markdown-stream",
+        list(
+          content = diff_md,
+          "content-type" = "markdown",
+          streaming = "false"
         )
       )
     )
+  )
 
-    # Build a simple container with just the preview content (no card header)
-    card <- htmltools::tags$div(
-      class = "approval-preview-content",
-      style = "padding: 0.5rem;",
-      preview_content
-    )
+  # Build a simple container with just the preview content (no card header)
+  card <- htmltools::tags$div(
+    class = "approval-preview-content",
+    style = "padding: 0.5rem;",
+    preview_content
+  )
 
-    format(card)
+  formatted <- format(card)
+    formatted
   }, error = function(e) {
-    format(htmltools::as.tags(shinychat::contents_shinychat(request)))
+    create_write_file_summary_preview(request)
   })
+}
+
+create_write_file_summary_preview <- function(request) {
+  args <- request@arguments
+  path <- args$path
+  insert_line <- args$insert_line
+  new_str <- args$new_str
+  old_str <- args$old_str
+
+  str_replace_mode <- !is.null(old_str) && !is.null(new_str)
+  insert_mode <- !is.null(insert_line) && !is.null(new_str)
+
+  old_str_lines <- if (str_replace_mode) strsplit(old_str, "\n", fixed = TRUE)[[1]] else character(0)
+  new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
+
+  operation <- if (str_replace_mode) "Edit" else if (insert_mode) "Edit/Create" else "Unknown"
+
+  context <- if (str_replace_mode) {
+    "str_replace"
+  } else if (insert_mode) {
+    sprintf("insert at line %d", insert_line)
+  } else {
+    "unknown"
+  }
+
+  diff_text <- create_diff_display(
+    removed_lines = old_str_lines,
+    added_lines = new_str_lines,
+    path = path,
+    context = context,
+    context_before = character(0),
+    context_after = character(0)
+  )
+
+  diff_md <- paste(diff_text, collapse = "\n")
+
+  title <- htmltools::HTML(sprintf(
+    "%s <code>%s</code>",
+    operation,
+    basename(path)
+  ))
+
+  preview_content <- htmltools::tagList(
+    htmltools::tags$div(
+      class = "write-file-preview",
+      style = "padding: 0.5rem;",
+      htmltools::tags$div(
+        class = "preview-title",
+        style = "font-weight: 600; margin-bottom: 0.5rem;",
+        title
+      ),
+      htmltools::tag(
+        "shiny-markdown-stream",
+        list(
+          content = diff_md,
+          "content-type" = "markdown",
+          streaming = "false"
+        )
+      )
+    )
+  )
+
+  card <- htmltools::tags$div(
+    class = "approval-preview-content",
+    style = "padding: 0.5rem;",
+    preview_content
+  )
+
+  format(card)
 }
 
 create_shell_preview <- function(request) {
