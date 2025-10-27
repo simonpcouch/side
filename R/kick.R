@@ -84,9 +84,14 @@ create_kick_file <- function(env_url) {
   prompt_path <- append_skills(main_config)
   client_code <- fetch_side_client(prompt_path)
 
+  working_dir <- normalizePath(getwd(), winslash = "/")
+  persist <- should_persist()
+
   app_code <- template
   app_code <- gsub("{{client_code}}", client_code, app_code, fixed = TRUE)
   app_code <- gsub("{{env_url}}", env_url, app_code, fixed = TRUE)
+  app_code <- gsub("{{working_dir}}", working_dir, app_code, fixed = TRUE)
+  app_code <- gsub("{{persist}}", as.character(persist), app_code, fixed = TRUE)
 
   temp_file <- tempfile(fileext = ".R")
   writeLines(app_code, temp_file)
