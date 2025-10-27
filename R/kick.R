@@ -23,7 +23,12 @@ kick <- function(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1")
   }
 
   port <- find_available_port()
-  app_dir <- create_kick_dir()
+  env_port <- find_available_port()
+  env_url <- generate_env_server_url(env_port)
+
+  launch_env_server(env_url)
+
+  app_dir <- create_kick_dir(env_url)
 
   run_in_background(app_dir, "side", host, port)
 
@@ -64,14 +69,14 @@ find_available_port <- function() {
   sample(safe_ports, 1)
 }
 
-create_kick_dir <- function() {
+create_kick_dir <- function(env_url) {
   dir <- normalizePath(tempdir(), winslash = "/")
-  app_file <- create_kick_file()
+  app_file <- create_kick_file(env_url)
   file.copy(app_file, file.path(dir, "app.R"), overwrite = TRUE)
   dir
 }
 
-create_kick_file <- function() {
+create_kick_file <- function(env_url) {
   temp_file <- tempfile(fileext = ".R")
 
   main_config <- system.file("agents", "main.md", package = "side")
@@ -95,6 +100,7 @@ create_kick_file <- function() {
     client$register_tool(side:::tool_fetch_skill())
     side:::swap_read_text_file(client)
     side:::swap_write_text_file(client)
+    side:::swap_env_tools(client, '{env_url}')
 
     shinychat::chat_app(client)
   ")
