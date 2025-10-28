@@ -45,6 +45,23 @@ reroute_tool <- function(tool, socket_url) {
   tool
 }
 
+silence_tool <- function(tool) {
+  check_inherits(tool, "ellmer::ToolDef")
+
+  tool_fun <- S7::S7_data(tool)
+
+  silenced_fun <- rlang::new_function(
+    rlang::fn_fmls(tool_fun),
+    rlang::expr({
+      suppressMessages(!!rlang::call2(tool_fun, !!!rlang::syms(names(rlang::fn_fmls(tool_fun)))))
+    }),
+    env = rlang::fn_env(tool_fun)
+  )
+
+  S7::S7_data(tool) <- silenced_fun
+  tool
+}
+
 start_env_tool_server <- function(url) {
   check_string(url)
 

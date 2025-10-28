@@ -14,6 +14,10 @@ sidekick_tools <- function(socket_url = NULL) {
     tools_to_reroute <- lapply(tools_to_reroute, reroute_tool, socket_url = socket_url)
   }
 
+  if ("btw_tool_files_code_search" %in% names(tools_to_reroute)) {
+    tools_to_reroute[["btw_tool_files_code_search"]] <- silence_tool(tools_to_reroute[["btw_tool_files_code_search"]])
+  }
+
   c(
     btw::btw_tools("docs"),
     btw::btw_tools("github"),
