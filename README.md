@@ -15,7 +15,7 @@ status](https://www.r-pkg.org/badges/version/side)](https://CRAN.R-project.org/p
 RStudio, implemented entirely in R. It can interact with your files,
 talk to your active R session, and run code.
 
-<img src="https://gist.github.com/user-attachments/assets/37922191-aaa9-4143-ae36-da79a2f25e06" alt="A screencast of an RStudio session. A script tool-fetch_skill.R is open in the editor. A call to `side::kick()` in the console launches a non-blocking shiny chat app in a full-height viewer pane. The user then pastes a snippet of code into the chat dialog and says 'refactor this into a helper'. After calling multiple tools to locate the code, the chat app proposes two file edits in a git diff-based UI that refactor the code as desired." width="100%" />
+<img src="https://github.com/user-attachments/assets/33e8d2bb-2e9e-4ff2-aef8-1695aaca3c77" alt="A screencast of an RStudio session. A script tool-fetch_skill.R is open in the editor. A call to `side::kick()` in the console launches a non-blocking shiny chat app in a full-height viewer pane. The user then pastes a snippet of code into the chat dialog and says 'refactor this into a helper'. After calling multiple tools to locate the code, the chat app proposes two file edits in a git diff-based UI that refactor the code as desired." width="100%" />
 
 ## Installation
 
