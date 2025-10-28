@@ -1,10 +1,12 @@
 cli::cli_alert_info('Welcome to `side::kick()`! You\'ll be redirected back to the console shortly.')
 
-library(btw)
-library(ellmer)
-library(shinychat)
-library(shiny)
-library(bslib)
+suppressPackageStartupMessages({
+  library(shiny)
+  library(bslib)
+  library(btw)
+  library(ellmer)
+  library(shinychat)
+})
 
 if (!requireNamespace('side', quietly = TRUE)) {
   stop('side package must be installed')
