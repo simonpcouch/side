@@ -78,7 +78,7 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
           if (success) "\u2705" else "\u274c",
           description
         )),
-        icon = tool_icon("terminal"),
+        icon = tool_icon("code-blocks"),
         show_request = FALSE,
         open = !success || nchar(stderr) > 0 || nchar(stdout) > 500
       )
@@ -163,7 +163,7 @@ tool_shell <- function() {
     ),
     convert = FALSE,
     annotations = ellmer::tool_annotations(
-      icon = tool_icon("terminal")
+      icon = tool_icon("code-blocks")
     )
   )
 }
