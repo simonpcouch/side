@@ -6,7 +6,8 @@ sidekick_tools <- function(socket_url = NULL) {
     list(
       read_text_file = tool_read_text_file(),
       write_text_file = tool_write_text_file(),
-      shell = tool_shell()
+      shell = tool_shell(),
+      run_r_code = tool_run_r_code()
     )
   )
 
