@@ -16,6 +16,12 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
   )
   
   shiny::moduleServer(id, function(input, output, session) {
+    saved_turns <- client$get_turns()
+
+    if (length(saved_turns) > 0) {
+      client$set_turns(list())
+    }
+
     shinychat::chat_restore(
       "chat",
       client,
@@ -23,7 +29,51 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
       bookmark_on_input = TRUE,
       bookmark_on_response = TRUE
     )
-    
+
+    if (length(saved_turns) > 0) {
+      client$set_turns(saved_turns)
+
+      for (turn in saved_turns) {
+        role <- turn@role
+        contents <- turn@contents
+
+        shinychat::chat_append_message(
+          "chat",
+          msg = list(role = role, content = ""),
+          operation = "append",
+          chunk = "start",
+          session = session
+        )
+
+        for (content in contents) {
+          if (S7::S7_inherits(content, ellmer::ContentToolResult)) {
+            if (!is.null(content@request)) {
+              session$sendCustomMessage("shiny-tool-request-hide", content@request@id)
+            }
+          }
+
+          shinychat_content <- shinychat::contents_shinychat(content)
+          if (!is.null(shinychat_content)) {
+            shinychat::chat_append_message(
+              "chat",
+              msg = list(role = role, content = shinychat_content),
+              operation = "append",
+              chunk = TRUE,
+              session = session
+            )
+          }
+        }
+
+        shinychat::chat_append_message(
+          "chat",
+          msg = list(role = role, content = ""),
+          operation = "append",
+          chunk = "end",
+          session = session
+        )
+      }
+    }
+
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
     

@@ -1,5 +1,4 @@
 validate_write_text_file_syntax <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
-  # Syntax-only validation (no file I/O) - safe to run before approval
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
@@ -21,12 +20,10 @@ validate_write_text_file_syntax <- function(path, insert_line, new_str, old_str,
 }
 
 validate_write_text_file_request <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
-  # Full validation including file I/O - runs when tool executes in correct working directory
   validate_write_text_file_syntax(path, insert_line, new_str, old_str, call = call)
 
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
-
   file_exists <- file.exists(path)
 
   if (!file_exists && str_replace_mode) {
@@ -36,13 +33,8 @@ validate_write_text_file_request <- function(path, insert_line, new_str, old_str
     )
   }
 
-  old_content <- if (file_exists) {
-    readLines(path, warn = FALSE)
-  } else {
-    character(0)
-  }
+  old_content <- if (file_exists) readLines(path, warn = FALSE) else character(0)
 
-  # Validate str_replace mode: check that old_str exists and is unique
   if (str_replace_mode && file_exists) {
     old_content_text <- paste(old_content, collapse = "\n")
     matches <- gregexpr(old_str, old_content_text, fixed = TRUE)[[1]]
@@ -62,14 +54,11 @@ validate_write_text_file_request <- function(path, insert_line, new_str, old_str
     }
   }
 
-  # Validate insert mode: check insert_line is in valid range
-  if (insert_mode && file_exists) {
-    if (insert_line < 0 || insert_line > length(old_content)) {
-      cli::cli_abort(
-        "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
-        call = call
-      )
-    }
+  if (insert_mode && file_exists && (insert_line < 0 || insert_line > length(old_content))) {
+    cli::cli_abort(
+      "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
+      call = call
+    )
   }
 
   old_content
@@ -80,13 +69,10 @@ write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_s
 
   old_content <- validate_write_text_file_request(path, insert_line, new_str, old_str, call = rlang::caller_env())
 
-  str_replace_mode <- !is.null(old_str) && !is.null(new_str)
-  insert_mode <- !is.null(insert_line) && !is.null(new_str)
-
-  if (str_replace_mode) {
-    result <- handle_str_replace(old_content, old_str, new_str, path)
+  result <- if (!is.null(old_str) && !is.null(new_str)) {
+    handle_str_replace(old_content, old_str, new_str, path)
   } else {
-    result <- handle_insert(old_content, insert_line, new_str, path)
+    handle_insert(old_content, insert_line, new_str, path)
   }
 
   dir_path <- dirname(path)
@@ -213,37 +199,16 @@ create_diff_display <- function(removed_lines, added_lines, path, context, conte
     return("No changes")
   }
 
-  diff_lines <- character()
-
-  if (length(context_before) > 0) {
-    for (line in context_before) {
-      diff_lines <- c(diff_lines, paste0("  ", line))
-    }
-  }
-
-  if (length(removed_lines) > 0) {
-    for (line in removed_lines) {
-      diff_lines <- c(diff_lines, paste0("- ", line))
-    }
-  }
-
-  if (length(added_lines) > 0) {
-    for (line in added_lines) {
-      diff_lines <- c(diff_lines, paste0("+ ", line))
-    }
-  }
-
-  if (length(context_after) > 0) {
-    for (line in context_after) {
-      diff_lines <- c(diff_lines, paste0("  ", line))
-    }
-  }
-
-  header <- sprintf("@@ %s: %s @@", basename(path), context)
+  diff_lines <- c(
+    paste0("  ", context_before),
+    paste0("- ", removed_lines),
+    paste0("+ ", added_lines),
+    paste0("  ", context_after)
+  )
 
   c(
     "```diff",
-    header,
+    sprintf("@@ %s: %s @@", basename(path), context),
     diff_lines,
     "```"
   )

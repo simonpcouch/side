@@ -31,8 +31,7 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
     if (!is.list(parsed_env)) {
       cli::cli_abort("env_vars must be a JSON object", call = rlang::caller_env())
     }
-    env_list <- unlist(parsed_env)
-    c(Sys.getenv(), env_list)
+    c(Sys.getenv(), unlist(parsed_env))
   } else {
     character(0)
   }
@@ -53,7 +52,6 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
   exit_code <- result$status
   stdout <- result$stdout
   stderr <- result$stderr
-
   success <- exit_code == 0
 
   value_text <- if (success) {
@@ -87,25 +85,18 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
 }
 
 format_shell_output <- function(command, stdout, stderr, exit_code, description) {
-  lines <- character()
-
-  lines <- c(lines, sprintf("**Command:** `%s`", command))
-  lines <- c(lines, sprintf("**Exit code:** %d", exit_code))
-  lines <- c(lines, "")
+  lines <- c(
+    sprintf("**Command:** `%s`", command),
+    sprintf("**Exit code:** %d", exit_code),
+    ""
+  )
 
   if (nchar(stdout) > 0) {
-    lines <- c(lines, "**Output:**")
-    lines <- c(lines, "```")
-    lines <- c(lines, stdout)
-    lines <- c(lines, "```")
-    lines <- c(lines, "")
+    lines <- c(lines, "**Output:**", "```", stdout, "```", "")
   }
 
   if (nchar(stderr) > 0) {
-    lines <- c(lines, "**Errors:**")
-    lines <- c(lines, "```")
-    lines <- c(lines, stderr)
-    lines <- c(lines, "```")
+    lines <- c(lines, "**Errors:**", "```", stderr, "```")
   }
 
   paste(lines, collapse = "\n")
@@ -196,10 +187,7 @@ is_dangerous_command <- function(command) {
 }
 
 parse_command <- function(command) {
-  trimmed <- trimws(command)
-
-  parts <- strsplit(trimmed, "\\s+")[[1]]
-
+  parts <- strsplit(trimws(command), "\\s+")[[1]]
   parts[parts != ""]
 }
 
@@ -218,33 +206,26 @@ is_shell_wrapper <- function(parts) {
 
 extract_shell_command <- function(command) {
   parts <- parse_command(command)
-
   c_idx <- which(parts %in% c("-c", "-lc"))
-  if (length(c_idx) == 0) return(NULL)
 
-  c_idx <- c_idx[1]
+  if (length(c_idx) == 0 || c_idx[1] >= length(parts)) {
+    return(NULL)
+  }
 
-  if (c_idx >= length(parts)) return(NULL)
-
-  remaining <- paste(parts[(c_idx + 1):length(parts)], collapse = " ")
-
-  remaining <- gsub("^['\"]|['\"]$", "", remaining)
-
-  remaining
+  remaining <- paste(parts[(c_idx[1] + 1):length(parts)], collapse = " ")
+  gsub("^['\"]|['\"]$", "", remaining)
 }
 
 is_dangerous_to_call_with_exec <- function(command) {
   parts <- parse_command(command)
-
-  if (length(parts) == 0) return(FALSE)
+  if (length(parts) == 0) {
+    return(FALSE)
+  }
 
   cmd <- basename(parts[1])
 
-  if (cmd == "sudo") {
-    if (length(parts) < 2) return(FALSE)
-
-    sudo_command <- paste(parts[-1], collapse = " ")
-    return(is_dangerous_to_call_with_exec(sudo_command))
+  if (cmd == "sudo" && length(parts) >= 2) {
+    return(is_dangerous_to_call_with_exec(paste(parts[-1], collapse = " ")))
   }
 
   if (cmd == "git") {
@@ -259,7 +240,9 @@ is_dangerous_to_call_with_exec <- function(command) {
 }
 
 is_dangerous_git_command <- function(args) {
-  if (length(args) == 0) return(FALSE)
+  if (length(args) == 0) {
+    return(FALSE)
+  }
 
   subcommand <- args[1]
 
@@ -279,7 +262,9 @@ is_dangerous_git_command <- function(args) {
 }
 
 is_dangerous_rm_command <- function(args) {
-  if (length(args) == 0) return(FALSE)
+  if (length(args) == 0) {
+    return(FALSE)
+  }
 
   any(grepl("^-[a-zA-Z]*[fF]", args))
 }

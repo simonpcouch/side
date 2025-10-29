@@ -80,54 +80,53 @@ get_chat_label <- function(chat_file) {
   tryCatch({
     client <- readRDS(chat_file)
     turns <- client$get_turns()
-
     user_turns <- Filter(function(turn) turn@role == "user", turns)
 
-    if (length(user_turns) == 0) {
-      first_words <- "New conversation"
+    first_words <- if (length(user_turns) == 0) {
+      "New conversation"
     } else {
-      first_turn <- user_turns[[1]]
-      text_contents <- Filter(
-        function(c) inherits(c, "ContentText") || inherits(c, "ellmer::ContentText"),
-        first_turn@contents
-      )
-
-      text <- NULL
-      if (length(text_contents) > 0 && !is.null(text_contents[[1]]@text)) {
-        text <- text_contents[[1]]@text
-      }
-
+      text <- extract_first_text(user_turns[[1]])
       if (is.null(text) || nchar(trimws(text)) == 0) {
-        first_words <- "New conversation"
+        "New conversation"
       } else {
-        words <- strsplit(text, "\\s+")[[1]]
-        first_words <- paste(head(words, 4), collapse = " ")
-
-        if (nchar(first_words) > 40) {
-          first_words <- paste0(substr(first_words, 1, 37), "...")
-        }
+        truncate_text(text)
       }
     }
 
     mtime <- file.info(chat_file)$mtime
-    date_str <- format(mtime, "%d-%m-%Y %H:%M")
-
-    paste0(first_words, " (", date_str, ")")
+    paste0(first_words, " (", format(mtime, "%d-%m-%Y %H:%M"), ")")
   }, error = function(e) {
     "Invalid chat file"
   })
 }
 
-sanitize_filename <- function(text) {
+extract_first_text <- function(turn) {
+  text_contents <- Filter(
+    function(c) inherits(c, "ContentText") || inherits(c, "ellmer::ContentText"),
+    turn@contents
+  )
+  if (length(text_contents) > 0 && !is.null(text_contents[[1]]@text)) {
+    text_contents[[1]]@text
+  } else {
+    NULL
+  }
+}
+
+truncate_text <- function(text, max_words = 4, max_chars = 40) {
   words <- strsplit(text, "\\s+")[[1]]
-  first_words <- paste(head(words, 4), collapse = " ")
+  result <- paste(head(words, max_words), collapse = " ")
+  if (nchar(result) > max_chars) {
+    paste0(substr(result, 1, max_chars - 3), "...")
+  } else {
+    result
+  }
+}
 
-  sanitized <- tolower(first_words)
-  sanitized <- gsub("[^a-z0-9]+", "_", sanitized)
+sanitize_filename <- function(text) {
+  sanitized <- paste(head(strsplit(text, "\\s+")[[1]], 4), collapse = " ")
+  sanitized <- gsub("[^a-z0-9]+", "_", tolower(sanitized))
   sanitized <- gsub("^_+|_+$", "", sanitized)
-
-  timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-  paste0(sanitized, "__", timestamp, ".rds")
+  paste0(sanitized, "__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
 }
 
 save_chat <- function(client, path = getwd(), persist = NULL, existing_file = NULL) {
@@ -142,38 +141,25 @@ save_chat <- function(client, path = getwd(), persist = NULL, existing_file = NU
   }
 
   chat_dir <- get_chat_dir(path, persist = persist)
-
   if (!dir.exists(chat_dir)) {
     dir.create(chat_dir, recursive = TRUE, showWarnings = FALSE)
   }
 
   user_turns <- Filter(function(turn) turn@role == "user", turns)
 
-  if (length(user_turns) == 0) {
-    filename <- paste0("new_conversation__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
+  filename <- if (length(user_turns) == 0) {
+    paste0("new_conversation__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
   } else {
-    first_turn <- user_turns[[1]]
-
-    text_contents <- Filter(
-      function(c) inherits(c, "ContentText") || inherits(c, "ellmer::ContentText"),
-      first_turn@contents
-    )
-
-    text <- NULL
-    if (length(text_contents) > 0 && !is.null(text_contents[[1]]@text)) {
-      text <- text_contents[[1]]@text
-    }
-
+    text <- extract_first_text(user_turns[[1]])
     if (is.null(text) || nchar(trimws(text)) == 0) {
-      filename <- paste0("new_conversation__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
+      paste0("new_conversation__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
     } else {
-      filename <- sanitize_filename(text)
+      sanitize_filename(text)
     }
   }
 
   filepath <- file.path(chat_dir, filename)
   saveRDS(client, filepath)
-
   invisible(filepath)
 }
 
@@ -182,26 +168,15 @@ load_chat <- function(chat_file, fresh_client) {
     cli::cli_abort("Chat file {.path {chat_file}} does not exist.")
   }
 
-  tryCatch({
-    old_client <- readRDS(chat_file)
+  old_client <- readRDS(chat_file)
+  fresh_client$set_turns(old_client$get_turns())
 
-    turns <- old_client$get_turns()
-    system_prompt <- old_client$get_system_prompt()
+  system_prompt <- old_client$get_system_prompt()
+  if (!is.null(system_prompt)) {
+    fresh_client$set_system_prompt(system_prompt)
+  }
 
-    fresh_client$set_turns(turns)
-    if (!is.null(system_prompt)) {
-      fresh_client$set_system_prompt(system_prompt)
-    }
-
-    fresh_client
-  }, error = function(e) {
-    cli::cli_abort(
-      c(
-        "Failed to load chat from {.path {chat_file}}",
-        "i" = "Error: {conditionMessage(e)}"
-      )
-    )
-  })
+  fresh_client
 }
 
 delete_oldest_chats <- function(path = getwd(), persist = NULL) {
@@ -209,31 +184,17 @@ delete_oldest_chats <- function(path = getwd(), persist = NULL) {
     persist <- should_persist()
   }
 
-  chat_dir <- get_chat_dir(path, persist = persist)
-
-  if (!dir.exists(chat_dir)) {
-    return(invisible(NULL))
-  }
-
   files <- get_chat_files(path, persist = persist)
-
   if (length(files) > 3) {
     to_delete <- files[4:length(files)]
-    for (f in to_delete) {
-      unlink(f)
-    }
+    unlink(to_delete)
   }
 
   if (!persist) {
     return(invisible(NULL))
   }
 
-  base_dir <- if (.Platform$OS.type == "windows") {
-    file.path(Sys.getenv("APPDATA"), "side", "chats")
-  } else {
-    file.path(Sys.getenv("HOME"), ".config", "side", "chats")
-  }
-
+  base_dir <- get_config_dir("chats")
   if (!dir.exists(base_dir)) {
     return(invisible(NULL))
   }
@@ -247,17 +208,20 @@ delete_oldest_chats <- function(path = getwd(), persist = NULL) {
     info <- file.info(all_files)
     all_files_sorted <- all_files[order(info$mtime, decreasing = TRUE)]
     to_delete <- all_files_sorted[16:length(all_files_sorted)]
-    for (f in to_delete) {
-      unlink(f)
-    }
+    unlink(to_delete)
   }
 
   invisible(NULL)
 }
 
-
-
-# interrupt handling ----------------------------------------------------------
+get_config_dir <- function(subdir) {
+  base <- if (.Platform$OS.type == "windows") {
+    file.path(Sys.getenv("APPDATA"), "side")
+  } else {
+    file.path(Sys.getenv("HOME"), ".config", "side")
+  }
+  file.path(base, subdir)
+}
 
 clean_incomplete_tool_requests <- function(client) {
   turns <- client$get_turns()
@@ -272,30 +236,25 @@ clean_incomplete_tool_requests <- function(client) {
 
   contents <- last_turn@contents
   requests <- Filter(function(c) S7::S7_inherits(c, ellmer::ContentToolRequest), contents)
-  results <- Filter(function(c) S7::S7_inherits(c, ellmer::ContentToolResult), contents)
-
   if (length(requests) == 0) {
     return(invisible(client))
   }
 
-  result_ids <- character(0)
-  if (length(results) > 0) {
-    result_ids <- vapply(results, function(r) {
-      if (!is.null(r@request) && !is.null(r@request@id)) {
-        r@request@id
-      } else {
-        NA_character_
-      }
+  results <- Filter(function(c) S7::S7_inherits(c, ellmer::ContentToolResult), contents)
+
+  result_ids <- if (length(results) > 0) {
+    ids <- vapply(results, function(r) {
+      if (!is.null(r@request) && !is.null(r@request@id)) r@request@id else NA_character_
     }, character(1))
-    result_ids <- result_ids[!is.na(result_ids)]
+    ids[!is.na(ids)]
+  } else {
+    character(0)
   }
 
-  incomplete_ids <- character(0)
-  for (req in requests) {
-    if (!is.null(req@id) && !(req@id %in% result_ids)) {
-      incomplete_ids <- c(incomplete_ids, req@id)
-    }
-  }
+  incomplete_ids <- vapply(requests, function(req) {
+    if (!is.null(req@id) && !(req@id %in% result_ids)) req@id else NA_character_
+  }, character(1))
+  incomplete_ids <- incomplete_ids[!is.na(incomplete_ids)]
 
   if (length(incomplete_ids) == 0) {
     return(invisible(client))
@@ -303,11 +262,9 @@ clean_incomplete_tool_requests <- function(client) {
 
   new_contents <- Filter(
     function(c) {
-      if (S7::S7_inherits(c, ellmer::ContentToolRequest)) {
-        !is.null(c@id) && !(c@id %in% incomplete_ids)
-      } else {
-        TRUE
-      }
+      !S7::S7_inherits(c, ellmer::ContentToolRequest) ||
+        is.null(c@id) ||
+        !(c@id %in% incomplete_ids)
     },
     contents
   )
@@ -315,12 +272,9 @@ clean_incomplete_tool_requests <- function(client) {
   last_turn@contents <- new_contents
   turns[[length(turns)]] <- last_turn
   client$set_turns(turns)
-
   invisible(client)
 }
 
-
-# ad-hoc check functions ------------------------------------------------------
 check_inherits <- function(
   x,
   class,
@@ -335,4 +289,22 @@ check_inherits <- function(
   }
 
   invisible(NULL)
+}
+
+strip_yaml_frontmatter <- function(lines) {
+  if (length(lines) == 0 || lines[1] != "---") {
+    return(lines)
+  }
+  
+  yaml_end <- which(lines == "---")
+  if (length(yaml_end) < 2) {
+    return(lines)
+  }
+  
+  content_start <- yaml_end[2] + 1
+  if (content_start > length(lines)) {
+    return(character(0))
+  }
+  
+  lines[content_start:length(lines)]
 }
