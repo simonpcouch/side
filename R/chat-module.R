@@ -9,7 +9,7 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
 
       p <- promises::promise_resolve(stream)
       promises::then(p, function(stream) {
-        chat_append_interruptible(ui_id, stream, interrupt_flag)
+        chat_append_interruptible(ui_id, stream, interrupt_flag, client, user_input)
       })
     }
   )
@@ -26,8 +26,9 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
     
     shiny::observeEvent(input$chat_user_input, label = "on_chat_user_input", {
       if (shiny::isolate(interrupt_flag())) {
-        clean_incomplete_tool_requests(client)
         interrupt_flag(FALSE)
+
+        merge_with_tool_results(client, input$chat_user_input)
       }
 
       last_input(input$chat_user_input)
@@ -150,6 +151,8 @@ chat_append_interruptible <- coro::async(function(
   id,
   stream,
   interrupt_flag,
+  client = NULL,
+  user_input = NULL,
   role = "assistant",
   icon = NULL,
   session = shiny::getDefaultReactiveDomain()
@@ -164,11 +167,11 @@ chat_append_interruptible <- coro::async(function(
         ...
       )
     }
-    
+
     chat_append_("", chunk = "start", icon = icon)
-    
+
     res <- fastmap::fastqueue(200)
-    
+
     interrupted <- FALSE
     for (msg in stream) {
       if (promises::is.promising(msg)) {
@@ -205,6 +208,10 @@ chat_append_interruptible <- coro::async(function(
           " [Interrupted.]"
         )
       )
+
+      if (!is.null(client) && !is.null(user_input)) {
+        patch_interrupted_chat(client, res$as_list(), user_input)
+      }
     }
 
     chat_append_("", chunk = "end")
@@ -217,21 +224,58 @@ chat_append_interruptible <- coro::async(function(
     }
 })
 
+merge_with_tool_results <- function(client, user_message) {
+  turns <- client$get_turns()
+  if (length(turns) == 0) {
+    return(invisible(NULL))
+  }
+
+  last_turn <- turns[[length(turns)]]
+  if (last_turn@role != "user") {
+    return(invisible(NULL))
+  }
+
+  has_tool_results <- any(vapply(
+    last_turn@contents,
+    function(c) S7::S7_inherits(c, ellmer::ContentToolResult),
+    logical(1)
+  ))
+
+  if (!has_tool_results) {
+    return(invisible(NULL))
+  }
+
+  interruption_text <- paste0(
+    "\n\nThe user interrupted after the tool call completed and has provided this followup: ",
+    user_message
+  )
+
+  last_turn@contents <- c(
+    last_turn@contents,
+    list(ellmer::ContentText(interruption_text))
+  )
+
+  turns[[length(turns)]] <- last_turn
+  client$set_turns(turns)
+
+  invisible(NULL)
+}
+
 as_ellmer_turns <- function(messages) {
   if (is.null(messages) || length(messages) == 0) {
     return(list())
   }
-  
+
   lapply(messages, function(msg) {
     role <- msg$role %||% "assistant"
     content <- msg$content %||% ""
-    
+
     if (is.character(content)) {
       contents <- list(ellmer::ContentText(content))
     } else {
       contents <- list(content)
     }
-    
+
     ellmer::Turn(role = role, contents = contents)
   })
 }

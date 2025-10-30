@@ -1,3 +1,22 @@
+setup_tool_interrupt_callback <- function(
+  client,
+  interrupt_flag,
+  session = shiny::getDefaultReactiveDomain()
+) {
+  if (is.null(session)) {
+    return(invisible(client))
+  }
+
+  client$on_tool_request(function(request) {
+    if (shiny::isolate(interrupt_flag())) {
+      ellmer::tool_reject("Tool execution was interrupted by user.")
+    }
+    invisible(NULL)
+  })
+
+  invisible(client)
+}
+
 setup_tool_approval_callback <- function(
   client,
   session = shiny::getDefaultReactiveDomain()

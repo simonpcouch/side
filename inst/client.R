@@ -117,6 +117,10 @@ ui <- function(req) {
           Shiny.setInputValue('interrupt_requested', Math.random(), {priority: 'event'});
         }
       });
+
+      Shiny.addCustomMessageHandler('reset-interrupt-flag', function(message) {
+        interruptRequested = false;
+      });
     "))
   )
 }
@@ -135,9 +139,10 @@ server <- function(input, output, session) {
     }
   })
 
-  side:::setup_tool_approval_callback(client, session)
-
   interrupt_flag <- reactiveVal(FALSE)
+
+  side:::setup_tool_interrupt_callback(client, interrupt_flag, session)
+  side:::setup_tool_approval_callback(client, session)
 
   chat_server <- side:::chat_mod_server_interruptible("chat", client, interrupt_flag)
   
@@ -151,6 +156,7 @@ server <- function(input, output, session) {
   observeEvent(chat_server$last_input(), {
     req(chat_server$last_input())
     chat_server$update_user_input(placeholder = "Esc to interrupt")
+    session$sendCustomMessage("reset-interrupt-flag", list())
   })
 
   observeEvent(chat_server$last_turn(), {
