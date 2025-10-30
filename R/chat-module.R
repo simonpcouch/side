@@ -1,4 +1,3 @@
-#' @noRd
 chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
 
   append_stream_task <- shiny::ExtendedTask$new(
@@ -147,7 +146,6 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
   })
 }
 
-#' @noRd
 chat_append_interruptible <- coro::async(function(
   id,
   stream,
@@ -219,7 +217,6 @@ chat_append_interruptible <- coro::async(function(
     }
 })
 
-#' @noRd
 as_ellmer_turns <- function(messages) {
   if (is.null(messages) || length(messages) == 0) {
     return(list())
