@@ -171,11 +171,6 @@ load_chat <- function(chat_file, fresh_client) {
   old_client <- readRDS(chat_file)
   fresh_client$set_turns(old_client$get_turns())
 
-  system_prompt <- old_client$get_system_prompt()
-  if (!is.null(system_prompt)) {
-    fresh_client$set_system_prompt(system_prompt)
-  }
-
   fresh_client
 }
 

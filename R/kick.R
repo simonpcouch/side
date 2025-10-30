@@ -35,19 +35,6 @@ kick <- function(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1")
   open_app_in_viewer(host, port)
 }
 
-kick_client <- function(call = rlang::caller_env()) {
-  main_config <- system.file("agents", "main.md", package = "side")
-  if (!file.exists(main_config)) {
-    cli::cli_abort(
-      "Could not find main agent configuration at {.path {main_config}}",
-      call = call
-    )
-  }
-
-  prompt_path <- append_skills(main_config)
-  btw::btw_client(path_btw = prompt_path)
-}
-
 append_skills <- function(prompt_path) {
   main_prompt <- paste(readLines(prompt_path, warn = FALSE), collapse = "\n")
   skills_section <- format_skills_section()
@@ -57,6 +44,41 @@ append_skills <- function(prompt_path) {
   }
 
   full_prompt <- paste0(main_prompt, "\n\n", skills_section)
+
+  temp_prompt <- tempfile(fileext = ".md")
+  writeLines(full_prompt, temp_prompt)
+
+  temp_prompt
+}
+
+append_user_context <- function(prompt_path, working_dir) {
+  context_files <- c("CLAUDE.md", "btw.md", "llms.txt", "AGENTS.md")
+
+  found_file <- NULL
+  for (filename in context_files) {
+    full_path <- file.path(working_dir, filename)
+    if (file.exists(full_path)) {
+      found_file <- list(name = filename, path = full_path)
+      break
+    }
+  }
+
+  if (is.null(found_file)) {
+    return(prompt_path)
+  }
+
+  main_prompt <- paste(readLines(prompt_path, warn = FALSE), collapse = "\n")
+  user_context <- paste(readLines(found_file$path, warn = FALSE), collapse = "\n")
+
+  context_section <- paste0(
+    "\n\n## User context\n\n",
+    "The following context has been provided by the user in ", found_file$name, ":\n\n",
+    "{userContext}\n",
+    user_context, "\n",
+    "{/userContext}"
+  )
+
+  full_prompt <- paste0(main_prompt, context_section)
 
   temp_prompt <- tempfile(fileext = ".md")
   writeLines(full_prompt, temp_prompt)
@@ -80,11 +102,12 @@ create_kick_file <- function(env_url) {
   template_path <- system.file("client.R", package = "side")
   template <- paste(readLines(template_path, warn = FALSE), collapse = "\n")
 
+  working_dir <- normalizePath(getwd(), winslash = "/")
   main_config <- system.file("agents", "main.md", package = "side")
   prompt_path <- append_skills(main_config)
+  prompt_path <- append_user_context(prompt_path, working_dir)
   client_code <- fetch_side_client(prompt_path)
 
-  working_dir <- normalizePath(getwd(), winslash = "/")
   persist <- should_persist()
 
   app_code <- template
