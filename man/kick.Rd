@@ -2,13 +2,13 @@
 % Please edit documentation in R/kick.R
 \name{kick}
 \alias{kick}
-\title{Launch the \code{side::kick()} coding agent}
+\title{A coding agent for RStudio}
 \usage{
 kick(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1"))
 }
 \arguments{
-\item{client}{An \link[ellmer:Chat]{ellmer::Chat} client or provider/model string
-(e.g., \code{"anthropic/claude-sonnet-4-5"}) to power the \code{side::kick()} app.}
+\item{client}{An \link[ellmer:Chat]{ellmer::Chat} client to power the \code{side::kick()} app.
+See the "Choosing a model" section below to learn more.}
 
 \item{...}{Currently ignored.}
 
@@ -17,12 +17,46 @@ Defaults to the value of \code{getOption("shiny.host", "127.0.0.1")}.}
 }
 \value{
 Launches a shiny application as a background job in RStudio. The application
-is displayed in the RStudio viewer pane.
+is displayed in the RStudio viewer pane and this function will return after
+the application is launched successfully.
 }
 \description{
-Launch the \code{side::kick()} coding agent
+A coding agent for RStudio
 }
-\details{
-This function requires RStudio and will error if not running in RStudio.
-The app runs as a background job, leaving the console free for other work.
+\section{Choosing a model}{
+
+
+\code{side::kick()} can use any model provider available in \code{\link[ellmer:chat-any]{ellmer::chat()}} to
+power the application. The app uses the \code{side.client} option (or the
+\code{side::kick(client)} argument if you prefer) to configure the ellmer Chat
+that powers the app; that option can be set to any \link[ellmer:Chat]{ellmer::Chat} object.
+
+When you call \code{kick()} without a client configured, a setup flow will
+guide you through selecting a model. The setup flow will:
+\enumerate{
+\item Check which providers are available based on your API keys (stored in
+environment variables) from a preferred subset of providers.
+\item Allow you to select from available providers.
+\item Ask if you want to save this configuration a) just for the current R
+session or b) in this \emph{and} future R sessions (by adding it to
+your \code{.Rprofile}).
 }
+
+You can also configure a client manually by setting the \code{side.client} option:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# For the current session only
+options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
+
+# In .Rprofile for all sessions
+usethis::edit_r_profile()
+# Then add: 
+options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
+}\if{html}{\out{</div>}}
+
+\strong{\code{side::kick()} was developed with Claude Sonnet 4.5 in mind}; use that
+model for best results. That said, any frontier non-thinking (or
+quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
+late 2025, I do not recommend using local (e.g. \code{\link[ellmer:chat_ollama]{ellmer::chat_ollama()}}) models, but
+you can give it a try!
+}
+
