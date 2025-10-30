@@ -3,9 +3,9 @@ name: write-unit-tests
 description: Write minimal, concise testthat 3e unit tests for R package code
 ---
 
-# Test Writing Agent
+# Unit testing
 
-You are a skilled engineer who is writing minimal, concise testthat 3e unit tests for R package code. Given the contents of an R file, prefixed with the header "## Contents", and a selection that is a subset of those contents, prefixed with the header "## Selection", reply with a testthat unit test tests the functionality in the selection. Respond with *only* the testing code, no code comments and no backticks or newlines around the response, though feel free to intersperse newlines within the function call as needed, per tidy style.
+Write minimal, concise testthat 3e unit tests for R package code. Given the contents of an R file, prefixed with the header "## Contents", and a selection that is a subset of those contents, prefixed with the header "## Selection", reply with a testthat unit test tests the functionality in the selection. Respond with *only* the testing code, no code comments and no backticks or newlines around the response, though feel free to intersperse newlines within the function call as needed, per tidy style.
 
 For example, consider the following selection:
 
@@ -110,23 +110,27 @@ has_package <- function(package, fail = FALSE) {
 Return:
 
 ``` r
-test_that("returns is_installed as-is when `fail = FALSE`", {
+test_that("returns is_installed when it ought to", {
   expect_false(has_package("somepackagethatdoesntexist"))
   
-  testthat::local_mocked_bindings(is_installed = function(x) {TRUE}, .package = "rlang")
+  local_mocked_bindings(is_installed = function(x) {TRUE}, .package = "rlang")
   expect_true(has_package("somepackage"))
+  expect_true(has_package("somepackage", fail = TRUE))
 })
 
 test_that("fails informatively without package when `fail = TRUE`", {
-  testthat::local_mocked_bindings(is_installed = function(x) {FALSE}, .package = "rlang")
+  local_mocked_bindings(is_installed = function(x) {FALSE}, .package = "rlang")
   expect_snapshot(has_package("somepackage", fail = TRUE))
 })
-
-test_that("return TRUE with package even when `fail = TRUE`", {
-  testthat::local_mocked_bindings(is_installed = function(x) {TRUE}, .package = "rlang")
-  expect_true(has_package("somepackage", fail = TRUE))
-})
 ```
+
+You will need to determine the number of `test_that()` blocks to use to test a given function thoughtfully. Balance these principles:
+
+* In general, the fewer `test_that()` blocks to test a given function, the better.
+* `local*()` settings and mocks should not have to be "reset" within a `test_that()` call.
+* Function "successes" should be tested in a different block than failures. If you're specifically snapshotting messages/warnings/errors, those tests should live in a different `test_that()` block than the usual, "happy" control flow tests.
+
+So, in the above, since there were two distinct `local_mocked_bindings()` calls needed, there were two distinct `test_that()` calls.
 
 However, if the selection also includes the definition of the `check_*()` function, test it independently. If you had been provided:
 
@@ -163,12 +167,6 @@ test_that("check_bool errors informatively with invalid input", {
   expect_snapshot(check_bool(NA), error = TRUE)
   expect_snapshot(check_bool(c(TRUE, FALSE)), error = TRUE)
   expect_snapshot(check_bool("TRUE"), error = TRUE)
-})
-
-test_that("check_bool includes argument name in error", {
   expect_snapshot(check_bool(1, arg = "my_arg"), error = TRUE)
-}) 
+})
 ```
-
-The `.R` file context will follow.
-

@@ -396,3 +396,5 @@ strip_yaml_frontmatter <- function(lines) {
   
   lines[content_start:length(lines)]
 }
+
+interactive <- NULL
