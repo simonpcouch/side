@@ -17,15 +17,14 @@ addResourcePath("side", system.file("www", package = "side"))
 working_dir <- '{{working_dir}}'
 .persist <- {{persist}}
 
+{{client_code}}
+
 chat_files <- side:::get_chat_files(working_dir, persist = .persist)
 if (length(chat_files) > 0) {
-  {{client_code}}
   client <- side:::load_chat(chat_files[1], client)
-  client$set_tools(side:::sidekick_tools('{{env_url}}'))
-} else {
-  {{client_code}}
-  client$set_tools(side:::sidekick_tools('{{env_url}}'))
 }
+
+client$set_tools(side:::sidekick_tools('{{env_url}}'))
 
 current_file <- shiny::reactiveVal(if (length(chat_files) > 0) chat_files[1] else NULL)
 
