@@ -227,31 +227,7 @@ server <- function(input, output, session) {
     client <<- side:::load_chat(input$load_chat_click, client)
     current_file(input$load_chat_click)
 
-    turns <- client$get_turns()
-
-    chat_server$clear(client_history = "keep")
-
-    for (turn in turns) {
-      if (turn@role == "user") {
-        text_contents <- Filter(
-          function(c) inherits(c, "ContentText") || inherits(c, "ellmer::ContentText"),
-          turn@contents
-        )
-        if (length(text_contents) > 0) {
-          chat_server$append(text_contents[[1]]@text, role = "user")
-        }
-      } else if (turn@role == "assistant") {
-        for (content in turn@contents) {
-          if (inherits(content, "ContentText") || inherits(content, "ellmer::ContentText")) {
-            chat_server$append(content@text, role = "assistant")
-          } else if (inherits(content, "ContentToolRequest")) {
-            chat_server$append(content, role = "assistant")
-          } else if (inherits(content, "ContentToolResult")) {
-            chat_server$append(content, role = "assistant")
-          }
-        }
-      }
-    }
+    chat_server$load_chat()
 
     menu_trigger(menu_trigger() + 1)
   })

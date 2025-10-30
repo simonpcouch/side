@@ -1,78 +1,26 @@
 #' @noRd
 chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
-  
+
   append_stream_task <- shiny::ExtendedTask$new(
     function(client, ui_id, user_input, interrupt_flag) {
       stream <- client$stream_async(
         user_input,
         stream = "content"
       )
-      
+
       p <- promises::promise_resolve(stream)
       promises::then(p, function(stream) {
         chat_append_interruptible(ui_id, stream, interrupt_flag)
       })
     }
   )
-  
+
   shiny::moduleServer(id, function(input, output, session) {
-    saved_turns <- client$get_turns()
-
-    if (length(saved_turns) > 0) {
-      client$set_turns(list())
-    }
-
     shinychat::chat_restore(
       "chat",
       client,
-      session = session,
-      bookmark_on_input = TRUE,
-      bookmark_on_response = TRUE
+      session = session
     )
-
-    if (length(saved_turns) > 0) {
-      client$set_turns(saved_turns)
-
-      for (turn in saved_turns) {
-        role <- turn@role
-        contents <- turn@contents
-
-        shinychat::chat_append_message(
-          "chat",
-          msg = list(role = role, content = ""),
-          operation = "append",
-          chunk = "start",
-          session = session
-        )
-
-        for (content in contents) {
-          if (S7::S7_inherits(content, ellmer::ContentToolResult)) {
-            if (!is.null(content@request)) {
-              session$sendCustomMessage("shiny-tool-request-hide", content@request@id)
-            }
-          }
-
-          shinychat_content <- shinychat::contents_shinychat(content)
-          if (!is.null(shinychat_content)) {
-            shinychat::chat_append_message(
-              "chat",
-              msg = list(role = role, content = shinychat_content),
-              operation = "append",
-              chunk = TRUE,
-              session = session
-            )
-          }
-        }
-
-        shinychat::chat_append_message(
-          "chat",
-          msg = list(role = role, content = ""),
-          operation = "append",
-          chunk = "end",
-          session = session
-        )
-      }
-    }
 
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
@@ -162,14 +110,39 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
       last_turn(NULL)
       last_input(NULL)
     }
-    
+
+    # chat_restore() is designed for initial module setup and bookmarking, not
+    # dynamic reloading. We expose this method to allow external code to reload
+    # the chat UI while maintaining access to the module's session context.
+    load_chat_ui <- function() {
+      shinychat::chat_clear("chat", session = session)
+
+      msgs <- shinychat::contents_shinychat(client)
+      lapply(msgs, function(msg_turn) {
+        is_list <- is.list(msg_turn$content) &&
+          !inherits(msg_turn$content, c("shiny.tag", "shiny.taglist"))
+
+        if (is_list) {
+          stream <- coro::generator(function() {
+            for (x in msg_turn$content) {
+              coro::yield(x)
+            }
+          })
+          shinychat::chat_append("chat", stream(), msg_turn$role, session = session)
+        } else {
+          shinychat::chat_append("chat", msg_turn$content, role = msg_turn$role, session = session)
+        }
+      })
+    }
+
     list(
       last_turn = shiny::reactive(last_turn(), label = "mod_last_turn"),
       last_input = shiny::reactive(last_input(), label = "mod_last_input"),
       client = client,
       append = chat_append_mod,
       update_user_input = chat_update_user_input,
-      clear = client_clear
+      clear = client_clear,
+      load_chat = load_chat_ui
     )
   })
 }
