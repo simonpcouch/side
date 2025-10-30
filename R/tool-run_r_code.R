@@ -9,7 +9,7 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
   exec_env <- if (persist) {
     .GlobalEnv
   } else {
-    rlang::env_clone(.GlobalEnv)
+    new.env(parent = .GlobalEnv)
   }
 
   result <- tryCatch(
