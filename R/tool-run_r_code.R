@@ -213,6 +213,8 @@ tool_run_r_code <- function() {
       "- Prefer btw_tool_docs_* tools for reading documentation",
       "- Prefer btw_tool_env_* tools for exploring objects in the environment",
       "- Prefer btw_tool_session_* tools for checking installed packages",
+      "- When plotting with this tool, make one plot per tool call.",
+      "Just return results implicitly rather than with `print()` or `cat()`.",
       "",
       "Persistence:",
       "- Only set persist to true if the user explicitly requests it AND you have written the code to a file first (for reproducibility)",
