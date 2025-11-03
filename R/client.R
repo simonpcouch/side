@@ -7,7 +7,8 @@ fetch_side_client <- function(prompt_path) {
     side_client_opt
   } else if (inherits(side_client_opt, "Chat")) {
     provider <- side_client_opt$get_provider()
-    paste0(tolower(provider@name), "/", provider@model)
+    provider_short <- gsub("/", "_", tolower(provider@name))
+    paste0(provider_short, "/", provider@model)
   } else {
     cli::cli_warn(c(
       "!" = "{.code side.client} option must be a Chat object or provider/model string.",
