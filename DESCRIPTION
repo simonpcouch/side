@@ -19,6 +19,7 @@ Imports:
     coro,
     ellmer,
     fastmap,
+    ggplot2,
     glue,
     htmltools,
     httr2,
