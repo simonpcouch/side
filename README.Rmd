@@ -18,6 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![CRAN status](https://www.r-pkg.org/badges/version/side)](https://CRAN.R-project.org/package=side)
+[![R-CMD-check](https://github.com/simonpcouch/side/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/simonpcouch/side/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `side::kick()` is a coding agent for data science in RStudio, implemented entirely in R. It can interact with your files, talk to your active R session, and run code.

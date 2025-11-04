@@ -10,3 +10,4 @@ inst/sandbox
 ^[.]?air[.]toml$
 ^\.vscode$
 .git-blame-ignore-revs
+^\.github$
