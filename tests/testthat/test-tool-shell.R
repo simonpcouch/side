@@ -83,7 +83,10 @@ test_that("safe commands and edge cases are not flagged", {
 
 test_that("parse_command splits and cleans command strings", {
   expect_equal(parse_command("git status"), c("git", "status"))
-  expect_equal(parse_command("git commit -m 'message'"), c("git", "commit", "-m", "'message'"))
+  expect_equal(
+    parse_command("git commit -m 'message'"),
+    c("git", "commit", "-m", "'message'")
+  )
   expect_equal(parse_command("  ls  -la  "), c("ls", "-la"))
   expect_equal(parse_command(""), character(0))
   expect_equal(parse_command("   "), character(0))

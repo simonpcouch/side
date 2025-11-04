@@ -31,7 +31,11 @@ validate_plan_steps <- function(steps, call = rlang::caller_env()) {
   for (i in seq_along(steps)) {
     step <- steps[[i]]
 
-    if (!is.list(step) || !"description" %in% names(step) || !"status" %in% names(step)) {
+    if (
+      !is.list(step) ||
+        !"description" %in% names(step) ||
+        !"status" %in% names(step)
+    ) {
       cli::cli_abort(
         "Step {i} must have 'description' and 'status' fields.",
         call = call
@@ -69,28 +73,41 @@ format_plan_display <- function(steps, intent = NULL) {
   )
 
   n_total <- length(steps)
-  n_completed <- sum(vapply(steps, function(x) x$status == "completed", logical(1)))
+  n_completed <- sum(vapply(
+    steps,
+    function(x) x$status == "completed",
+    logical(1)
+  ))
   pct_complete <- if (n_total > 0) round(100 * n_completed / n_total) else 0
 
   bar_width <- 60
   n_filled <- round(bar_width * n_completed / n_total)
   n_empty <- bar_width - n_filled
 
-  lines <- vapply(seq_along(steps), function(i) {
-    step <- steps[[i]]
-    icon <- status_icons[[step$status]]
+  lines <- vapply(
+    seq_along(steps),
+    function(i) {
+      step <- steps[[i]]
+      icon <- status_icons[[step$status]]
 
-    desc <- if (step$status == "in_progress") {
-      paste0("**", step$description, "**")
-    } else {
-      step$description
-    }
+      desc <- if (step$status == "in_progress") {
+        paste0("**", step$description, "**")
+      } else {
+        step$description
+      }
 
-    paste0(i, ". ", icon, " ", desc)
-  }, character(1))
+      paste0(i, ". ", icon, " ", desc)
+    },
+    character(1)
+  )
 
   result <- paste0(
-    n_completed, " of ", n_total, " steps completed (", pct_complete, "%)\n\n",
+    n_completed,
+    " of ",
+    n_total,
+    " steps completed (",
+    pct_complete,
+    "%)\n\n",
     paste(lines, collapse = "\n")
   )
 

@@ -1,6 +1,6 @@
 fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
   skill_path <- find_skill(skill_name)
-  
+
   if (is.null(skill_path)) {
     available <- list_available_skills()
     skill_names <- vapply(available, function(x) x$name, character(1))
@@ -12,9 +12,9 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
       call = rlang::caller_env()
     )
   }
-  
+
   skill_content <- readLines(skill_path, warn = FALSE)
-  
+
   # Remove YAML frontmatter if present
   content_start <- 1
   if (length(skill_content) > 0 && skill_content[1] == "---") {
@@ -23,8 +23,11 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
       content_start <- yaml_end[2] + 1
     }
   }
-  
-  skill_text <- paste(skill_content[content_start:length(skill_content)], collapse = "\n")
+
+  skill_text <- paste(
+    skill_content[content_start:length(skill_content)],
+    collapse = "\n"
+  )
 
   ellmer::ContentToolResult(
     value = skill_text,
@@ -44,32 +47,32 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
 
 find_skill <- function(skill_name) {
   skill_dirs <- get_skill_directories()
-  
+
   for (dir in skill_dirs) {
     skill_path <- file.path(dir, paste0(skill_name, ".md"))
     if (file.exists(skill_path)) {
       return(skill_path)
     }
   }
-  
+
   NULL
 }
 
 get_skill_directories <- function() {
   dirs <- character()
-  
+
   # Built-in skills from package
   package_skills <- system.file("skills", package = "side")
   if (nzchar(package_skills) && dir.exists(package_skills)) {
     dirs <- c(dirs, package_skills)
   }
-  
+
   # User skills from config directory (configurable via option)
   user_skills_dir <- getOption("side.skills_dir", default_user_skills_dir())
   if (dir.exists(user_skills_dir)) {
     dirs <- c(dirs, user_skills_dir)
   }
-  
+
   dirs
 }
 
@@ -84,18 +87,18 @@ default_user_skills_dir <- function() {
 list_available_skills <- function() {
   skill_dirs <- get_skill_directories()
   all_skills <- list()
-  
+
   for (dir in skill_dirs) {
     if (!dir.exists(dir)) {
       next
     }
-    
+
     skill_files <- list.files(dir, pattern = "\\.md$", full.names = TRUE)
-    
+
     for (skill_file in skill_files) {
       metadata <- extract_skill_metadata(skill_file)
       skill_name <- tools::file_path_sans_ext(basename(skill_file))
-      
+
       # User skills override built-in skills with same name
       if (!skill_name %in% names(all_skills)) {
         all_skills[[skill_name]] <- list(
@@ -106,25 +109,25 @@ list_available_skills <- function() {
       }
     }
   }
-  
+
   all_skills
 }
 
 extract_skill_metadata <- function(skill_path) {
   lines <- readLines(skill_path, warn = FALSE)
-  
+
   if (length(lines) == 0 || lines[1] != "---") {
     return(list())
   }
-  
+
   yaml_end_indices <- which(lines == "---")
   if (length(yaml_end_indices) < 2) {
     return(list())
   }
-  
+
   yaml_lines <- lines[2:(yaml_end_indices[2] - 1)]
   yaml_text <- paste(yaml_lines, collapse = "\n")
-  
+
   tryCatch(
     yaml::yaml.load(yaml_text),
     error = function(e) list()
@@ -133,11 +136,11 @@ extract_skill_metadata <- function(skill_path) {
 
 format_skills_section <- function() {
   skills <- list_available_skills()
-  
+
   if (length(skills) == 0) {
     return("")
   }
-  
+
   # Read the skills explanation prompt
   skills_prompt_path <- system.file("prompts", "skills.md", package = "side")
   explanation <- if (file.exists(skills_prompt_path)) {
@@ -145,12 +148,16 @@ format_skills_section <- function() {
   } else {
     "## Skills\n\nYou have access to specialized skills that provide detailed guidance for specific tasks."
   }
-  
+
   # Format the list of available skills
-  skill_items <- vapply(skills, function(skill) {
-    paste0("- **", skill$name, "**: ", skill$description)
-  }, character(1))
-  
+  skill_items <- vapply(
+    skills,
+    function(skill) {
+      paste0("- **", skill$name, "**: ", skill$description)
+    },
+    character(1)
+  )
+
   paste0(
     explanation,
     "\n\n**Available skills:**\n\n",
@@ -180,4 +187,3 @@ tool_fetch_skill <- function() {
     convert = FALSE
   )
 }
-

@@ -77,32 +77,37 @@ get_chat_label <- function(chat_file) {
     return("Unknown chat")
   }
 
-  tryCatch({
-    client <- readRDS(chat_file)
-    turns <- client$get_turns()
-    user_turns <- Filter(function(turn) turn@role == "user", turns)
+  tryCatch(
+    {
+      client <- readRDS(chat_file)
+      turns <- client$get_turns()
+      user_turns <- Filter(function(turn) turn@role == "user", turns)
 
-    first_words <- if (length(user_turns) == 0) {
-      "New conversation"
-    } else {
-      text <- extract_first_text(user_turns[[1]])
-      if (is.null(text) || nchar(trimws(text)) == 0) {
+      first_words <- if (length(user_turns) == 0) {
         "New conversation"
       } else {
-        truncate_text(text)
+        text <- extract_first_text(user_turns[[1]])
+        if (is.null(text) || nchar(trimws(text)) == 0) {
+          "New conversation"
+        } else {
+          truncate_text(text)
+        }
       }
-    }
 
-    mtime <- file.info(chat_file)$mtime
-    paste0(first_words, " (", format(mtime, "%d-%m-%Y %H:%M"), ")")
-  }, error = function(e) {
-    "Invalid chat file"
-  })
+      mtime <- file.info(chat_file)$mtime
+      paste0(first_words, " (", format(mtime, "%d-%m-%Y %H:%M"), ")")
+    },
+    error = function(e) {
+      "Invalid chat file"
+    }
+  )
 }
 
 extract_first_text <- function(turn) {
   text_contents <- Filter(
-    function(c) inherits(c, "ContentText") || inherits(c, "ellmer::ContentText"),
+    function(c) {
+      inherits(c, "ContentText") || inherits(c, "ellmer::ContentText")
+    },
     turn@contents
   )
   if (length(text_contents) > 0 && !is.null(text_contents[[1]]@text)) {
@@ -129,7 +134,12 @@ sanitize_filename <- function(text) {
   paste0(sanitized, "__", format(Sys.time(), "%Y%m%d_%H%M%S"), ".rds")
 }
 
-save_chat <- function(client, path = getwd(), persist = NULL, existing_file = NULL) {
+save_chat <- function(
+  client,
+  path = getwd(),
+  persist = NULL,
+  existing_file = NULL
+) {
   turns <- client$get_turns()
   if (length(turns) == 0) {
     return(invisible(NULL))
@@ -221,19 +231,23 @@ get_config_dir <- function(subdir) {
 # When a user interrupts a streaming response, ellmer's Chat is left in an
 # inconsistent state. Normally, ellmer only adds turns to the Chat history after
 # a stream completes successfully. When we interrupt mid-stream,
-# we need to ensure that user/assistant turns alternate back-and-forth, and that 
+# we need to ensure that user/assistant turns alternate back-and-forth, and that
 # all tool requests have matching tool results.
-# 
-# For the purposes of this app, interrupts either occur 1) during the tool 
-# calling loop or 2) not. 
-# 1) When during the tool calling loop, just confirm that tool calling loops 
-# appear complete by patching requests that don't have matching results with 
-# a text content. 
-# 2) When not during tool calling, process the streamed text content and 
+#
+# For the purposes of this app, interrupts either occur 1) during the tool
+# calling loop or 2) not.
+# 1) When during the tool calling loop, just confirm that tool calling loops
+# appear complete by patching requests that don't have matching results with
+# a text content.
+# 2) When not during tool calling, process the streamed text content and
 # let that form the assistant turn.
-patch_interrupted_chat <- function(client, streamed_content = NULL, user_input = NULL) {
+patch_interrupted_chat <- function(
+  client,
+  streamed_content = NULL,
+  user_input = NULL
+) {
   # saveRDS(
-  #   list(client = client, streamed_content = streamed_content, user_input = user_input), 
+  #   list(client = client, streamed_content = streamed_content, user_input = user_input),
   #   "/Users/simoncouch/.config/side/before_patching.rds"
   # )
   request_ids <- character()
@@ -253,15 +267,17 @@ patch_interrupted_chat <- function(client, streamed_content = NULL, user_input =
       }
     })
   }
-  
+
   requests_without_matches <- request_ids[!request_ids %in% result_ids]
 
   old_turns <- client$get_turns()
   new_turns <- list()
   for (turn in old_turns) {
     turn@contents <- lapply(turn@contents, function(c) {
-      if (S7::S7_inherits(c, ellmer::ContentToolRequest) && 
-          c@id %in% requests_without_matches) {
+      if (
+        S7::S7_inherits(c, ellmer::ContentToolRequest) &&
+          c@id %in% requests_without_matches
+      ) {
         return(ellmer::ContentText(
           paste0("_Tool call to `", c@name, "` interrupted._")
         ))
@@ -274,8 +290,8 @@ patch_interrupted_chat <- function(client, streamed_content = NULL, user_input =
   }
 
   # If there are requests without matches, the interruption happended during
-  # the tool calling loop. In that case, just patch the tool call turns and 
-  # don't worry about updating from other streamed content--ellmer already 
+  # the tool calling loop. In that case, just patch the tool call turns and
+  # don't worry about updating from other streamed content--ellmer already
   # had a chance to form complete turns up to the penultimate one.
   if (length(requests_without_matches) > 0) {
     client$set_turns(new_turns)
@@ -283,19 +299,27 @@ patch_interrupted_chat <- function(client, streamed_content = NULL, user_input =
   }
 
   if (!is.null(streamed_content)) {
-    text_content <- vapply(streamed_content, function(c) S7::S7_inherits(c, ellmer::ContentText), logical(1))
-    text_content <- paste0(vapply(streamed_content[text_content], function(c) c@text, character(1)), collapse = "")
+    text_content <- vapply(
+      streamed_content,
+      function(c) S7::S7_inherits(c, ellmer::ContentText),
+      logical(1)
+    )
+    text_content <- paste0(
+      vapply(streamed_content[text_content], function(c) c@text, character(1)),
+      collapse = ""
+    )
     text_content <- paste0(text_content, "...\n\n_Streaming interrupted._")
 
     if (length(new_turns) == 0) {
       last_turn_is_assistant <- TRUE
     } else {
-      last_turn_is_assistant <- new_turns[[length(new_turns)]]@role == "Assistant"
+      last_turn_is_assistant <- new_turns[[length(new_turns)]]@role ==
+        "Assistant"
     }
-    
+
     if (last_turn_is_assistant) {
       new_turns <- c(
-        new_turns, 
+        new_turns,
         list(
           ellmer::Turn("user", list(ellmer::ContentText(user_input))),
           ellmer::Turn("assistant", list(ellmer::ContentText(text_content)))
@@ -305,7 +329,10 @@ patch_interrupted_chat <- function(client, streamed_content = NULL, user_input =
       # The most recent turn is a user turn, so update its contents with
       # the new user input
       last_user_turn <- new_turns[[length(new_turns)]]
-      last_user_turn@contents <- c(last_user_turn@contents, ellmer::ContentText(user_input))
+      last_user_turn@contents <- c(
+        last_user_turn@contents,
+        ellmer::ContentText(user_input)
+      )
       new_turns[[length(new_turns)]] <- last_user_turn
 
       new_turns <- c(
@@ -339,17 +366,17 @@ strip_yaml_frontmatter <- function(lines) {
   if (length(lines) == 0 || lines[1] != "---") {
     return(lines)
   }
-  
+
   yaml_end <- which(lines == "---")
   if (length(yaml_end) < 2) {
     return(lines)
   }
-  
+
   content_start <- yaml_end[2] + 1
   if (content_start > length(lines)) {
     return(character(0))
   }
-  
+
   lines[content_start:length(lines)]
 }
 

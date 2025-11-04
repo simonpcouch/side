@@ -1,11 +1,21 @@
-shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, env_vars = NULL, `_intent` = NULL) {
+shell_impl <- function(
+  command,
+  description,
+  cwd = NULL,
+  timeout_ms = 120000,
+  env_vars = NULL,
+  `_intent` = NULL
+) {
   check_string(command)
   check_string(description)
 
   if (!is.null(cwd)) {
     check_string(cwd)
     if (!dir.exists(cwd)) {
-      cli::cli_abort("Working directory {.path {cwd}} does not exist.", call = rlang::caller_env())
+      cli::cli_abort(
+        "Working directory {.path {cwd}} does not exist.",
+        call = rlang::caller_env()
+      )
     }
   }
 
@@ -29,7 +39,10 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
   env <- if (!is.null(env_vars)) {
     parsed_env <- jsonlite::fromJSON(env_vars, simplifyVector = FALSE)
     if (!is.list(parsed_env)) {
-      cli::cli_abort("env_vars must be a JSON object", call = rlang::caller_env())
+      cli::cli_abort(
+        "env_vars must be a JSON object",
+        call = rlang::caller_env()
+      )
     }
     c(Sys.getenv(), unlist(parsed_env))
   } else {
@@ -60,7 +73,13 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
     sprintf("Command failed with exit code %d\n%s", exit_code, stderr)
   }
 
-  output_display <- format_shell_output(command, stdout, stderr, exit_code, description)
+  output_display <- format_shell_output(
+    command,
+    stdout,
+    stderr,
+    exit_code,
+    description
+  )
 
   ellmer::ContentToolResult(
     value = value_text,
@@ -84,7 +103,13 @@ shell_impl <- function(command, description, cwd = NULL, timeout_ms = 120000, en
   )
 }
 
-format_shell_output <- function(command, stdout, stderr, exit_code, description) {
+format_shell_output <- function(
+  command,
+  stdout,
+  stderr,
+  exit_code,
+  description
+) {
   lines <- c(
     sprintf("**Command:** `%s`", command),
     sprintf("**Exit code:** %d", exit_code),
@@ -192,14 +217,20 @@ parse_command <- function(command) {
 }
 
 is_shell_wrapper <- function(parts) {
-  if (length(parts) == 0) return(FALSE)
+  if (length(parts) == 0) {
+    return(FALSE)
+  }
 
   shell_commands <- c("bash", "sh", "zsh", "fish")
   first <- basename(parts[1])
 
-  if (!first %in% shell_commands) return(FALSE)
+  if (!first %in% shell_commands) {
+    return(FALSE)
+  }
 
-  if (length(parts) < 3) return(FALSE)
+  if (length(parts) < 3) {
+    return(FALSE)
+  }
 
   any(parts[2] %in% c("-c", "-lc"))
 }

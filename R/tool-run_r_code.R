@@ -31,7 +31,7 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
       NULL
     }
   )
-  
+
   if (!is.null(error_msg)) {
     error_lines <- strsplit(error_msg, "\n", fixed = TRUE)[[1]]
     error_commented <- paste0("#> ", error_lines, collapse = "\n")
@@ -53,7 +53,7 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
       )
     ))
   }
-  
+
   captured_plots <- check_for_plots(result)
 
   tool_value <- if (!is.null(captured_plots)) {
@@ -68,11 +68,19 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
 
   if (is.character(tool_value)) {
     if (length(messages) > 0) {
-      tool_value <- paste0(tool_value, "\n\nMessages:\n", paste(messages, collapse = "\n"))
+      tool_value <- paste0(
+        tool_value,
+        "\n\nMessages:\n",
+        paste(messages, collapse = "\n")
+      )
     }
 
     if (length(warnings) > 0) {
-      tool_value <- paste0(tool_value, "\n\nWarnings:\n", paste(warnings, collapse = "\n"))
+      tool_value <- paste0(
+        tool_value,
+        "\n\nWarnings:\n",
+        paste(warnings, collapse = "\n")
+      )
     }
   }
 
@@ -95,25 +103,28 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
 
 check_for_plots <- function(result) {
   plots <- list()
-  
+
   if (inherits(result, "ggplot")) {
     plots <- list(result)
   } else if (is.list(result)) {
-    plots <- Filter(function(x) {
-      inherits(x, "ggplot") || 
-        inherits(x, "recordedplot") ||
-        inherits(x, "trellis")
-    }, result)
+    plots <- Filter(
+      function(x) {
+        inherits(x, "ggplot") ||
+          inherits(x, "recordedplot") ||
+          inherits(x, "trellis")
+      },
+      result
+    )
   }
-  
+
   if (length(plots) == 0) {
     return(NULL)
   }
-  
+
   plot_files <- lapply(seq_along(plots), function(i) {
     plot <- plots[[i]]
     temp_file <- tempfile(fileext = ".png")
-    
+
     if (inherits(plot, "ggplot")) {
       ggplot2::ggsave(temp_file, plot, width = 8, height = 6, dpi = 150)
     } else if (inherits(plot, "trellis")) {
@@ -125,14 +136,20 @@ check_for_plots <- function(result) {
       grDevices::replayPlot(plot)
       grDevices::dev.off()
     }
-    
+
     temp_file
   })
-  
+
   plot_files
 }
 
-create_run_r_code_display <- function(code, result, messages, warnings, plot_files) {
+create_run_r_code_display <- function(
+  code,
+  result,
+  messages,
+  warnings,
+  plot_files
+) {
   has_plots <- !is.null(plot_files) && length(plot_files) > 0
 
   if (has_plots) {
@@ -144,12 +161,15 @@ create_run_r_code_display <- function(code, result, messages, warnings, plot_fil
 
     for (i in seq_along(plot_files)) {
       img_data <- base64enc::base64encode(plot_files[[i]])
-      html_parts <- c(html_parts, list(
-        htmltools::tags$img(
-          src = sprintf("data:image/png;base64,%s", img_data),
-          style = "max-width: 100%; height: auto; display: block; margin: 10px 0;"
+      html_parts <- c(
+        html_parts,
+        list(
+          htmltools::tags$img(
+            src = sprintf("data:image/png;base64,%s", img_data),
+            style = "max-width: 100%; height: auto; display: block; margin: 10px 0;"
+          )
         )
-      ))
+      )
     }
 
     return(list(
@@ -172,12 +192,20 @@ create_run_r_code_display <- function(code, result, messages, warnings, plot_fil
   }
 
   if (length(messages) > 0) {
-    message_lines <- strsplit(paste(messages, collapse = "\n"), "\n", fixed = TRUE)[[1]]
+    message_lines <- strsplit(
+      paste(messages, collapse = "\n"),
+      "\n",
+      fixed = TRUE
+    )[[1]]
     output_lines <- c(output_lines, paste0("#> ", message_lines))
   }
 
   if (length(warnings) > 0) {
-    warning_lines <- strsplit(paste(warnings, collapse = "\n"), "\n", fixed = TRUE)[[1]]
+    warning_lines <- strsplit(
+      paste(warnings, collapse = "\n"),
+      "\n",
+      fixed = TRUE
+    )[[1]]
     output_lines <- c(output_lines, paste0("#> Warning: ", warning_lines[1]))
     if (length(warning_lines) > 1) {
       output_lines <- c(output_lines, paste0("#> ", warning_lines[-1]))

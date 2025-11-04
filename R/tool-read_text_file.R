@@ -1,4 +1,9 @@
-read_text_file_impl <- function(path, line_start = 1, line_end = 1000, `_intent` = NULL) {
+read_text_file_impl <- function(
+  path,
+  line_start = 1,
+  line_end = 1000,
+  `_intent` = NULL
+) {
   check_string(path)
 
   if (!file.exists(path)) {
@@ -17,9 +22,11 @@ read_text_file_impl <- function(path, line_start = 1, line_end = 1000, `_intent`
       contents <- character(0)
     }
 
-    contents_with_line_numbers <- sprintf("%d: %s",
-                                          seq(line_start, length.out = length(contents)),
-                                          contents)
+    contents_with_line_numbers <- sprintf(
+      "%d: %s",
+      seq(line_start, length.out = length(contents)),
+      contents
+    )
 
     value <- paste(contents_with_line_numbers, collapse = "\n")
 

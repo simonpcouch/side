@@ -1,10 +1,13 @@
 setup_client <- function() {
   if (!interactive()) {
-    cli::cli_abort(c(
-      "Setup requires an interactive R session.",
-      i = "Set {.code options(side.client = ellmer::chat_*())} to continue.",
-      i = "See {.help side::kick} for more information."
-    ), call = NULL)
+    cli::cli_abort(
+      c(
+        "Setup requires an interactive R session.",
+        i = "Set {.code options(side.client = ellmer::chat_*())} to continue.",
+        i = "See {.help side::kick} for more information."
+      ),
+      call = NULL
+    )
   }
 
   client_info <- prompt_provider_selection()
@@ -22,7 +25,9 @@ prompt_provider_selection <- function() {
       name = "Anthropic (Claude Sonnet 4.5)",
       fn_name = "chat_anthropic",
       model = "claude-sonnet-4-5",
-      create_client = function() ellmer::chat_anthropic(model = "claude-sonnet-4-5")
+      create_client = function() {
+        ellmer::chat_anthropic(model = "claude-sonnet-4-5")
+      }
     ),
     list(
       name = "OpenAI (GPT 4.1)",
@@ -34,7 +39,9 @@ prompt_provider_selection <- function() {
       name = "Google Gemini (Gemini 2.5 Pro)",
       fn_name = "chat_google_gemini",
       model = "gemini-2.5-pro",
-      create_client = function() ellmer::chat_google_gemini(model = "gemini-2.5-pro")
+      create_client = function() {
+        ellmer::chat_google_gemini(model = "gemini-2.5-pro")
+      }
     ),
     list(
       name = "GitHub (GPT 4.1)",
@@ -63,7 +70,7 @@ prompt_provider_selection <- function() {
   )
 
   selection <- utils::menu(
-    choices, 
+    choices,
     title = "Which provider/model would you like to use with `side::kick`?"
   )
 
@@ -78,7 +85,7 @@ prompt_provider_selection <- function() {
          {.code options(side.client = ellmer::chat_*())} to continue.",
         i = "To set the option every time you start R, add that line to 
          {.file .Rprofile} with {.code usethis::edit_r_profile()}"
-      ), 
+      ),
       call = call2("side::kick()")
     )
   }
@@ -149,7 +156,9 @@ persist_client_option <- function(fn_name, model) {
   }
 
   if (any(grepl("side.client", existing, fixed = TRUE))) {
-    cli::cli_abort("A {.code side.client} option already exists in {.file {rprofile_path}}.")
+    cli::cli_abort(
+      "A {.code side.client} option already exists in {.file {rprofile_path}}."
+    )
   }
 
   new_content <- c(existing, "", option_line)

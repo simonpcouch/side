@@ -1,5 +1,4 @@
 chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
-
   append_stream_task <- shiny::ExtendedTask$new(
     function(client, ui_id, user_input, interrupt_flag) {
       stream <- client$stream_async(
@@ -9,7 +8,13 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
 
       p <- promises::promise_resolve(stream)
       promises::then(p, function(stream) {
-        chat_append_interruptible(ui_id, stream, interrupt_flag, client, user_input)
+        chat_append_interruptible(
+          ui_id,
+          stream,
+          interrupt_flag,
+          client,
+          user_input
+        )
       })
     }
   )
@@ -23,11 +28,10 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
 
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
-    
+
     shiny::observeEvent(input$chat_user_input, label = "on_chat_user_input", {
       if (shiny::isolate(interrupt_flag())) {
         interrupt_flag(FALSE)
-        
       }
 
       last_input(input$chat_user_input)
@@ -39,13 +43,13 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
         interrupt_flag
       )
     })
-    
+
     shiny::observe(label = "update_last_turn", {
       if (append_stream_task$status() == "success") {
         last_turn(client$last_turn())
       }
     })
-    
+
     chat_update_user_input <- function(
       value = NULL,
       ...,
@@ -63,17 +67,23 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
         session = session
       )
     }
-    
+
     chat_append_mod <- function(response, role = "assistant", icon = NULL) {
-      shinychat::chat_append("chat", response, role = role, icon = icon, session = session)
+      shinychat::chat_append(
+        "chat",
+        response,
+        role = role,
+        icon = icon,
+        session = session
+      )
     }
-    
+
     client_clear <- function(
       messages = NULL,
       client_history = c("clear", "set", "append", "keep")
     ) {
       client_history <- rlang::arg_match(client_history)
-      
+
       if (!is.null(messages)) {
         if (rlang::is_string(messages)) {
           messages <- list(list(role = "assistant", content = messages))
@@ -87,14 +97,19 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
           messages <- list(messages)
         }
       }
-      
+
       shinychat::chat_clear("chat", session = session)
       if (!is.null(messages)) {
         for (msg in messages) {
-          shinychat::chat_append("chat", msg$content, role = msg$role, session = session)
+          shinychat::chat_append(
+            "chat",
+            msg$content,
+            role = msg$role,
+            session = session
+          )
         }
       }
-      
+
       if (client_history == "clear") {
         client$set_turns(list())
       } else if (client_history == "set") {
@@ -105,7 +120,7 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
         turns <- c(turns, as_ellmer_turns(messages))
         client$set_turns(turns)
       }
-      
+
       last_turn(NULL)
       last_input(NULL)
     }
@@ -127,9 +142,19 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
               coro::yield(x)
             }
           })
-          shinychat::chat_append("chat", stream(), msg_turn$role, session = session)
+          shinychat::chat_append(
+            "chat",
+            stream(),
+            msg_turn$role,
+            session = session
+          )
         } else {
-          shinychat::chat_append("chat", msg_turn$content, role = msg_turn$role, session = session)
+          shinychat::chat_append(
+            "chat",
+            msg_turn$content,
+            role = msg_turn$role,
+            session = session
+          )
         }
       })
     }
@@ -156,83 +181,87 @@ chat_append_interruptible <- coro::async(function(
   icon = NULL,
   session = shiny::getDefaultReactiveDomain()
 ) {
-    chat_append_ <- function(content, chunk = TRUE, ...) {
-      shinychat::chat_append_message(
-        id,
-        msg = list(role = role, content = content),
-        operation = "append",
-        chunk = chunk,
-        session = session,
-        ...
-      )
+  chat_append_ <- function(content, chunk = TRUE, ...) {
+    shinychat::chat_append_message(
+      id,
+      msg = list(role = role, content = content),
+      operation = "append",
+      chunk = chunk,
+      session = session,
+      ...
+    )
+  }
+
+  chat_append_("", chunk = "start", icon = icon)
+
+  res <- fastmap::fastqueue(200)
+
+  interrupted <- FALSE
+  for (msg in stream) {
+    if (promises::is.promising(msg)) {
+      msg <- await(msg)
+    }
+    if (coro::is_exhausted(msg)) {
+      break
     }
 
-    chat_append_("", chunk = "start", icon = icon)
-
-    res <- fastmap::fastqueue(200)
-
-    interrupted <- FALSE
-    for (msg in stream) {
-      if (promises::is.promising(msg)) {
-        msg <- await(msg)
-      }
-      if (coro::is_exhausted(msg)) {
-        break
-      }
-
-      if (shiny::isolate(interrupt_flag())) {
-        interrupted <- TRUE
-        break
-      }
-
-      res$add(msg)
-
-      if (S7::S7_inherits(msg, ellmer::ContentToolResult)) {
-        if (!is.null(msg@request)) {
-          session$sendCustomMessage("shiny-tool-request-hide", msg@request@id)
-        }
-      }
-
-      if (S7::S7_inherits(msg, ellmer::Content)) {
-        msg <- shinychat::contents_shinychat(msg)
-      }
-
-      chat_append_(msg)
+    if (shiny::isolate(interrupt_flag())) {
+      interrupted <- TRUE
+      break
     }
 
-    if (interrupted) {
-      streamed_content <- res$as_list()
+    res$add(msg)
 
-      has_tool_request <- any(vapply(
-        streamed_content,
+    if (S7::S7_inherits(msg, ellmer::ContentToolResult)) {
+      if (!is.null(msg@request)) {
+        session$sendCustomMessage("shiny-tool-request-hide", msg@request@id)
+      }
+    }
+
+    if (S7::S7_inherits(msg, ellmer::Content)) {
+      msg <- shinychat::contents_shinychat(msg)
+    }
+
+    chat_append_(msg)
+  }
+
+  if (interrupted) {
+    streamed_content <- res$as_list()
+
+    has_tool_request <- any(vapply(
+      streamed_content,
+      function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
+      logical(1)
+    ))
+
+    if (has_tool_request) {
+      tool_requests <- Filter(
         function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
-        logical(1)
-      ))
-
-      if (has_tool_request) {
-        tool_requests <- Filter(
-          function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
-          streamed_content
-        )
-        last_request <- tool_requests[[length(tool_requests)]]
-        interrupt_msg <- paste0("_Tool call to `", last_request@name, "` interrupted._")
-      } else {
-        interrupt_msg <- "...\n\n_Streaming interrupted._"
-      }
-
-      chat_append_(interrupt_msg)
-
-      patch_interrupted_chat(client, streamed_content, user_input = user_input)
-    }
-
-    chat_append_("", chunk = "end")
-
-    res <- res$as_list()
-    if (all(vapply(res, is.character, logical(1)))) {
-      paste(unlist(res), collapse = "")
+        streamed_content
+      )
+      last_request <- tool_requests[[length(tool_requests)]]
+      interrupt_msg <- paste0(
+        "_Tool call to `",
+        last_request@name,
+        "` interrupted._"
+      )
     } else {
-      res
+      interrupt_msg <- "...\n\n_Streaming interrupted._"
     }
+
+    chat_append_(interrupt_msg)
+
+    patch_interrupted_chat(client, streamed_content, user_input = user_input)
+  }
+
+  chat_append_("", chunk = "end")
+
+  res <- res$as_list()
+  if (all(vapply(res, is.character, logical(1)))) {
+    paste(unlist(res), collapse = "")
+  } else {
+    res
+  }
 })
 
 as_ellmer_turns <- function(messages) {

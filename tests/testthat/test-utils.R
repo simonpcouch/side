@@ -16,21 +16,42 @@ test_that("should_persist returns FALSE in non-interactive non-CRAN mode", {
 })
 
 test_that("truncate_text truncates by word count or character limit", {
-  result_by_word <- truncate_text("this is a very long sentence with many words", max_words = 4, max_chars = 100)
+  result_by_word <- truncate_text(
+    "this is a very long sentence with many words",
+    max_words = 4,
+    max_chars = 100
+  )
   expect_equal(result_by_word, "this is a very")
 
-  result_by_char <- truncate_text("verylongwordthatexceedsmaximumcharacterlimit", max_words = 10, max_chars = 20)
+  result_by_char <- truncate_text(
+    "verylongwordthatexceedsmaximumcharacterlimit",
+    max_words = 10,
+    max_chars = 20
+  )
   expect_equal(result_by_char, "verylongwordthate...")
   expect_equal(nchar(result_by_char), 20)
 
-  result_within_limits <- truncate_text("short text", max_words = 10, max_chars = 100)
+  result_within_limits <- truncate_text(
+    "short text",
+    max_words = 10,
+    max_chars = 100
+  )
   expect_equal(result_within_limits, "short text")
 })
 
 test_that("sanitize_filename creates valid timestamped filenames", {
-  expect_match(sanitize_filename("Hello World Test"), "^hello_world_test__\\d{8}_\\d{6}\\.rds$")
-  expect_match(sanitize_filename("Test!@#$%^&*()File"), "^test_file__\\d{8}_\\d{6}\\.rds$")
-  expect_match(sanitize_filename("one two three four five six seven"), "^one_two_three_four__\\d{8}_\\d{6}\\.rds$")
+  expect_match(
+    sanitize_filename("Hello World Test"),
+    "^hello_world_test__\\d{8}_\\d{6}\\.rds$"
+  )
+  expect_match(
+    sanitize_filename("Test!@#$%^&*()File"),
+    "^test_file__\\d{8}_\\d{6}\\.rds$"
+  )
+  expect_match(
+    sanitize_filename("one two three four five six seven"),
+    "^one_two_three_four__\\d{8}_\\d{6}\\.rds$"
+  )
 })
 
 test_that("check_inherits accepts matching class", {
@@ -43,14 +64,26 @@ test_that("check_inherits errors informatively with wrong class", {
 })
 
 test_that("strip_yaml_frontmatter handles various YAML patterns", {
-  lines_with_yaml <- c("---", "title: Test", "---", "content line 1", "content line 2")
-  expect_equal(strip_yaml_frontmatter(lines_with_yaml), c("content line 1", "content line 2"))
+  lines_with_yaml <- c(
+    "---",
+    "title: Test",
+    "---",
+    "content line 1",
+    "content line 2"
+  )
+  expect_equal(
+    strip_yaml_frontmatter(lines_with_yaml),
+    c("content line 1", "content line 2")
+  )
 
   lines_no_yaml <- c("content line 1", "content line 2")
   expect_equal(strip_yaml_frontmatter(lines_no_yaml), lines_no_yaml)
 
   lines_incomplete_yaml <- c("---", "title: Test", "content line 1")
-  expect_equal(strip_yaml_frontmatter(lines_incomplete_yaml), lines_incomplete_yaml)
+  expect_equal(
+    strip_yaml_frontmatter(lines_incomplete_yaml),
+    lines_incomplete_yaml
+  )
 
   lines_empty_after_yaml <- c("---", "title: Test", "---")
   expect_equal(strip_yaml_frontmatter(lines_empty_after_yaml), character(0))

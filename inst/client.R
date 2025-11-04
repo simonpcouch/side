@@ -1,4 +1,6 @@
-cli::cli_alert_info('Welcome to `side::kick()`! You\'ll be redirected back to the console shortly.')
+cli::cli_alert_info(
+  'Welcome to `side::kick()`! You\'ll be redirected back to the console shortly.'
+)
 
 suppressPackageStartupMessages({
   library(shiny)
@@ -15,9 +17,17 @@ if (!requireNamespace('side', quietly = TRUE)) {
 addResourcePath("side", system.file("www", package = "side"))
 
 working_dir <- '{{working_dir}}'
-.persist <- {{persist}}
+.persist <- {
+  {
+    persist
+  }
+}
 
-{{client_code}}
+{
+  {
+    client_code
+  }
+}
 
 chat_files <- side:::get_chat_files(working_dir, persist = .persist)
 if (length(chat_files) > 0) {
@@ -26,14 +36,17 @@ if (length(chat_files) > 0) {
 
 client$set_tools(side:::sidekick_tools('{{env_url}}'))
 
-current_file <- shiny::reactiveVal(if (length(chat_files) > 0) chat_files[1] else NULL)
+current_file <- shiny::reactiveVal(
+  if (length(chat_files) > 0) chat_files[1] else NULL
+)
 
 ui <- function(req) {
   bslib::page_fillable(
     tags$head(
       tags$script(src = "side/tool-approval.js"),
       tags$link(rel = "stylesheet", href = "side/tool-approval.css"),
-      tags$style(HTML("
+      tags$style(HTML(
+        "
         .chat-menu-btn {
           position: fixed;
           top: 6px;
@@ -88,7 +101,8 @@ ui <- function(req) {
         .chat-menu-item:last-child {
           border-bottom: none;
         }
-      "))
+      "
+      ))
     ),
     shinychat::chat_mod_ui("chat", height = "100%"),
     tags$button(
@@ -108,7 +122,8 @@ ui <- function(req) {
       label = "",
       class = "btn-close close-btn"
     ),
-    tags$script(HTML("
+    tags$script(HTML(
+      "
       let interruptRequested = false;
 
       document.addEventListener('keydown', function(e) {
@@ -121,7 +136,8 @@ ui <- function(req) {
       Shiny.addCustomMessageHandler('reset-interrupt-flag', function(message) {
         interruptRequested = false;
       });
-    "))
+    "
+    ))
   )
 }
 
@@ -144,12 +160,18 @@ server <- function(input, output, session) {
   side:::setup_tool_interrupt_callback(client, interrupt_flag, session)
   side:::setup_tool_approval_callback(client, session)
 
-  chat_server <- side:::chat_mod_server_interruptible("chat", client, interrupt_flag)
-  
+  chat_server <- side:::chat_mod_server_interruptible(
+    "chat",
+    client,
+    interrupt_flag
+  )
+
   observeEvent(input$interrupt_requested, {
     if (!interrupt_flag()) {
       interrupt_flag(TRUE)
-      chat_server$update_user_input(placeholder = "Interrupted--type to continue")
+      chat_server$update_user_input(
+        placeholder = "Interrupted--type to continue"
+      )
     }
   })
 
@@ -185,16 +207,19 @@ server <- function(input, output, session) {
       for (i in seq_along(chat_files)) {
         file <- chat_files[i]
         label <- side:::get_chat_label(file)
-        menu_items <- c(menu_items, list(
-          tags$div(
-            class = "chat-menu-item",
-            onclick = sprintf(
-              "Shiny.setInputValue('load_chat_click', '%s'); document.getElementById('chat_dropdown').classList.remove('show');",
-              file
-            ),
-            label
+        menu_items <- c(
+          menu_items,
+          list(
+            tags$div(
+              class = "chat-menu-item",
+              onclick = sprintf(
+                "Shiny.setInputValue('load_chat_click', '%s'); document.getElementById('chat_dropdown').classList.remove('show');",
+                file
+              ),
+              label
+            )
           )
-        ))
+        )
       }
     }
 
@@ -206,7 +231,12 @@ server <- function(input, output, session) {
   observeEvent(input$new_chat_click, {
     current <- current_file()
     if (!is.null(current) || length(client$get_turns()) > 0) {
-      filepath <- side:::save_chat(client, working_dir, persist = .persist, existing_file = current)
+      filepath <- side:::save_chat(
+        client,
+        working_dir,
+        persist = .persist,
+        existing_file = current
+      )
       if (is.null(current) && !is.null(filepath)) {
         current_file(filepath)
       }
@@ -224,7 +254,12 @@ server <- function(input, output, session) {
 
     current <- current_file()
     if (!is.null(current) || length(client$get_turns()) > 0) {
-      filepath <- side:::save_chat(client, working_dir, persist = .persist, existing_file = current)
+      filepath <- side:::save_chat(
+        client,
+        working_dir,
+        persist = .persist,
+        existing_file = current
+      )
       if (is.null(current) && !is.null(filepath)) {
         current_file(filepath)
       }
@@ -241,7 +276,12 @@ server <- function(input, output, session) {
   shiny::observeEvent(input$close_btn, {
     current <- current_file()
     if (!is.null(current) || length(client$get_turns()) > 0) {
-      filepath <- side:::save_chat(client, working_dir, persist = .persist, existing_file = current)
+      filepath <- side:::save_chat(
+        client,
+        working_dir,
+        persist = .persist,
+        existing_file = current
+      )
       if (is.null(current) && !is.null(filepath)) {
         current_file(filepath)
       }
@@ -252,12 +292,17 @@ server <- function(input, output, session) {
   session$onSessionEnded(function() {
     current <- current_file()
     if (!is.null(current) || length(client$get_turns()) > 0) {
-      filepath <- side:::save_chat(client, working_dir, persist = .persist, existing_file = current)
+      filepath <- side:::save_chat(
+        client,
+        working_dir,
+        persist = .persist,
+        existing_file = current
+      )
       if (is.null(current) && !is.null(filepath)) {
         current_file(filepath)
       }
     }
-    
+
     side:::stash_last_kick(client)
   })
 }

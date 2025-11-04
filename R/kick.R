@@ -12,20 +12,20 @@
 #' the application is launched successfully.
 #'
 #' @section Choosing a model:
-#' 
+#'
 #' `side::kick()` can use any model provider available in [ellmer::chat()] to
-#' power the application. The app uses the `side.client` option (or the 
+#' power the application. The app uses the `side.client` option (or the
 #' `side::kick(client)` argument if you prefer) to configure the ellmer Chat
 #' that powers the app; that option can be set to any [ellmer::Chat] object.
-#' 
+#'
 #' When you call `kick()` without a client configured, a setup flow will
 #' guide you through selecting a model. The setup flow will:
 #'
 #' 1. Check which providers are available based on your API keys (stored in
 #'    environment variables) from a preferred subset of providers.
 #' 2. Allow you to select from available providers.
-#' 3. Ask if you want to save this configuration a) just for the current R 
-#'    session or b) in this _and_ future R sessions (by adding it to 
+#' 3. Ask if you want to save this configuration a) just for the current R
+#'    session or b) in this _and_ future R sessions (by adding it to
 #'    your `.Rprofile`).
 #'
 #' You can also configure a client manually by setting the `side.client` option:
@@ -36,18 +36,22 @@
 #'
 #' # In .Rprofile for all sessions
 #' usethis::edit_r_profile()
-#' # Then add: 
+#' # Then add:
 #' options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
 #' ```
 #'
-#' **`side::kick()` was developed with Claude Sonnet 4.5 in mind**; use that 
-#' model for best results. That said, any frontier non-thinking (or 
-#' quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of 
+#' **`side::kick()` was developed with Claude Sonnet 4.5 in mind**; use that
+#' model for best results. That said, any frontier non-thinking (or
+#' quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
 #' late 2025, I do not recommend using local (e.g. [chat_ollama()]) models, but
 #' you can give it a try!
 #'
 #' @export
-kick <- function(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1")) {
+kick <- function(
+  client = NULL,
+  ...,
+  host = getOption("shiny.host", "127.0.0.1")
+) {
   rstudioapi::verifyAvailable()
 
   if (!is.null(client)) {
@@ -104,13 +108,19 @@ append_user_context <- function(prompt_path, working_dir) {
   }
 
   main_prompt <- paste(readLines(prompt_path, warn = FALSE), collapse = "\n")
-  user_context <- paste(readLines(found_file$path, warn = FALSE), collapse = "\n")
+  user_context <- paste(
+    readLines(found_file$path, warn = FALSE),
+    collapse = "\n"
+  )
 
   context_section <- paste0(
     "\n\n## User context\n\n",
-    "The following context has been provided by the user in ", found_file$name, ":\n\n",
+    "The following context has been provided by the user in ",
+    found_file$name,
+    ":\n\n",
     "{userContext}\n",
-    user_context, "\n",
+    user_context,
+    "\n",
     "{/userContext}"
   )
 
@@ -123,7 +133,10 @@ append_user_context <- function(prompt_path, working_dir) {
 }
 
 find_available_port <- function() {
-  safe_ports <- setdiff(3000:8000, c(3659, 4045, 5060, 5061, 6000, 6566, 6665:6669, 6697))
+  safe_ports <- setdiff(
+    3000:8000,
+    c(3659, 4045, 5060, 5061, 6000, 6566, 6665:6669, 6697)
+  )
   sample(safe_ports, 1)
 }
 
@@ -160,7 +173,9 @@ create_kick_file <- function(env_url) {
 run_in_background <- function(app_dir, job_name, host, port) {
   job_script <- tempfile(fileext = ".R")
   writeLines(
-    glue::glue("shiny::runApp(appDir = '{app_dir}', port = {port}, host = '{host}')"),
+    glue::glue(
+      "shiny::runApp(appDir = '{app_dir}', port = {port}, host = '{host}')"
+    ),
     job_script
   )
 

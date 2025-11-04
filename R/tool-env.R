@@ -1,5 +1,5 @@
 # Some tools depend on accessing specifically the right working directory
-# or R environment. This tool reroutes those tool calls to be evaluated in the 
+# or R environment. This tool reroutes those tool calls to be evaluated in the
 # right context via nanonext to do so.
 reroute_tool <- function(tool, socket_url) {
   check_inherits(tool, "ellmer::ToolDef")
@@ -53,7 +53,12 @@ silence_tool <- function(tool) {
   silenced_fun <- rlang::new_function(
     rlang::fn_fmls(tool_fun),
     rlang::expr({
-      suppressMessages(!!rlang::call2(tool_fun, !!!rlang::syms(names(rlang::fn_fmls(tool_fun)))))
+      suppressMessages(
+        !!rlang::call2(
+          tool_fun,
+          !!!rlang::syms(names(rlang::fn_fmls(tool_fun)))
+        )
+      )
     }),
     env = rlang::fn_env(tool_fun)
   )
@@ -153,21 +158,23 @@ wait_for_env_server <- function(url, max_seconds = 5) {
 
   while (difftime(Sys.time(), start_time, units = "secs") < max_seconds) {
     result <- tryCatch(
-      {{
-        sock <- nanonext::socket("req", dial = url)
-        on.exit(close(sock), add = TRUE)
-        ctx <- nanonext::context(sock)
+      {
+        {
+          sock <- nanonext::socket("req", dial = url)
+          on.exit(close(sock), add = TRUE)
+          ctx <- nanonext::context(sock)
 
-        test_request <- list(
-          tool_name = "btw_tool_env_describe_environment",
-          arguments = list(items = NULL, `_intent` = "")
-        )
+          test_request <- list(
+            tool_name = "btw_tool_env_describe_environment",
+            arguments = list(items = NULL, `_intent` = "")
+          )
 
-        response <- nanonext::request(ctx, data = test_request, timeout = 100)
-        nanonext::call_aio(response)
+          response <- nanonext::request(ctx, data = test_request, timeout = 100)
+          nanonext::call_aio(response)
 
-        return(invisible(NULL))
-      }},
+          return(invisible(NULL))
+        }
+      },
       error = function(e) {
         NULL
       }

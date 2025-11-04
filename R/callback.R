@@ -22,7 +22,9 @@ setup_tool_approval_callback <- function(
   session = shiny::getDefaultReactiveDomain()
 ) {
   if (is.null(session)) {
-    cli::cli_warn("Tool approval requires a Shiny session. Skipping approval setup.")
+    cli::cli_warn(
+      "Tool approval requires a Shiny session. Skipping approval setup."
+    )
     return(invisible(client))
   }
 
@@ -63,7 +65,10 @@ setup_tool_approval_callback <- function(
 
     show_approval_ui_message(request, request_id, session)
 
-    response <- coro::await(promises::promise_race(approval_promise, timeout_promise))
+    response <- coro::await(promises::promise_race(
+      approval_promise,
+      timeout_promise
+    ))
 
     session$userData$approval_resolvers$remove(request_id)
 
@@ -97,10 +102,13 @@ requires_approval <- function(request) {
 show_approval_ui_message <- function(request, request_id, session) {
   preview_html <- create_approval_preview(request)
 
-  session$sendCustomMessage("show-approval-message", list(
-    request_id = request_id,
-    tool_card_html = preview_html
-  ))
+  session$sendCustomMessage(
+    "show-approval-message",
+    list(
+      request_id = request_id,
+      tool_card_html = preview_html
+    )
+  )
 }
 
 create_approval_preview <- function(request) {
@@ -131,7 +139,11 @@ create_write_file_preview <- function(request) {
     return(create_write_file_summary_preview(request))
   }
 
-  old_content <- if (file_exists) readLines(path, warn = FALSE) else character(0)
+  old_content <- if (file_exists) {
+    readLines(path, warn = FALSE)
+  } else {
+    character(0)
+  }
 
   if (str_replace_mode && file_exists) {
     old_content_text <- paste(old_content, collapse = "\n")
@@ -148,29 +160,32 @@ create_write_file_preview <- function(request) {
     }
   }
 
-  tryCatch({
-    result <- if (str_replace_mode) {
-      handle_str_replace(old_content, old_str, new_str, path)
-    } else {
-      handle_insert(old_content, insert_line, new_str, path)
+  tryCatch(
+    {
+      result <- if (str_replace_mode) {
+        handle_str_replace(old_content, old_str, new_str, path)
+      } else {
+        handle_insert(old_content, insert_line, new_str, path)
+      }
+
+      diff_text <- create_diff_display(
+        result$removed_lines,
+        result$added_lines,
+        path,
+        result$context,
+        result$context_before,
+        result$context_after
+      )
+
+      diff_md <- paste(diff_text, collapse = "\n")
+      title <- sprintf("%s <code>%s</code>", result$operation, basename(path))
+
+      create_approval_card(diff_md, title)
+    },
+    error = function(e) {
+      create_write_file_summary_preview(request)
     }
-
-    diff_text <- create_diff_display(
-      result$removed_lines,
-      result$added_lines,
-      path,
-      result$context,
-      result$context_before,
-      result$context_after
-    )
-
-    diff_md <- paste(diff_text, collapse = "\n")
-    title <- sprintf("%s <code>%s</code>", result$operation, basename(path))
-
-    create_approval_card(diff_md, title)
-  }, error = function(e) {
-    create_write_file_summary_preview(request)
-  })
+  )
 }
 
 create_write_file_summary_preview <- function(request) {
@@ -183,10 +198,20 @@ create_write_file_summary_preview <- function(request) {
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
-  old_str_lines <- if (str_replace_mode) strsplit(old_str, "\n", fixed = TRUE)[[1]] else character(0)
+  old_str_lines <- if (str_replace_mode) {
+    strsplit(old_str, "\n", fixed = TRUE)[[1]]
+  } else {
+    character(0)
+  }
   new_str_lines <- strsplit(new_str, "\n", fixed = TRUE)[[1]]
 
-  operation <- if (str_replace_mode) "Edit" else if (insert_mode) "Edit/Create" else "Unknown"
+  operation <- if (str_replace_mode) {
+    "Edit"
+  } else if (insert_mode) {
+    "Edit/Create"
+  } else {
+    "Unknown"
+  }
 
   context <- if (str_replace_mode) {
     "str_replace"
@@ -288,4 +313,3 @@ create_shell_preview <- function(request) {
     card_html
   )
 }
-

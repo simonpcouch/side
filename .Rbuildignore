@@ -7,3 +7,5 @@ CLAUDE.md
 .claude/
 inst/prompts
 inst/sandbox
+^[.]?air[.]toml$
+^\.vscode$

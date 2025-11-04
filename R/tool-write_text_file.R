@@ -1,4 +1,10 @@
-validate_write_text_file_syntax <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
+validate_write_text_file_syntax <- function(
+  path,
+  insert_line,
+  new_str,
+  old_str,
+  call = rlang::caller_env()
+) {
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
 
@@ -19,8 +25,20 @@ validate_write_text_file_syntax <- function(path, insert_line, new_str, old_str,
   invisible(NULL)
 }
 
-validate_write_text_file_request <- function(path, insert_line, new_str, old_str, call = rlang::caller_env()) {
-  validate_write_text_file_syntax(path, insert_line, new_str, old_str, call = call)
+validate_write_text_file_request <- function(
+  path,
+  insert_line,
+  new_str,
+  old_str,
+  call = rlang::caller_env()
+) {
+  validate_write_text_file_syntax(
+    path,
+    insert_line,
+    new_str,
+    old_str,
+    call = call
+  )
 
   str_replace_mode <- !is.null(old_str) && !is.null(new_str)
   insert_mode <- !is.null(insert_line) && !is.null(new_str)
@@ -33,7 +51,11 @@ validate_write_text_file_request <- function(path, insert_line, new_str, old_str
     )
   }
 
-  old_content <- if (file_exists) readLines(path, warn = FALSE) else character(0)
+  old_content <- if (file_exists) {
+    readLines(path, warn = FALSE)
+  } else {
+    character(0)
+  }
 
   if (str_replace_mode && file_exists) {
     old_content_text <- paste(old_content, collapse = "\n")
@@ -54,7 +76,11 @@ validate_write_text_file_request <- function(path, insert_line, new_str, old_str
     }
   }
 
-  if (insert_mode && file_exists && (insert_line < 0 || insert_line > length(old_content))) {
+  if (
+    insert_mode &&
+      file_exists &&
+      (insert_line < 0 || insert_line > length(old_content))
+  ) {
     cli::cli_abort(
       "insert_line must be between 0 and {length(old_content)} (0 = beginning, {length(old_content)} = end).",
       call = call
@@ -64,10 +90,22 @@ validate_write_text_file_request <- function(path, insert_line, new_str, old_str
   old_content
 }
 
-write_text_file_impl <- function(path, insert_line = NULL, new_str = NULL, old_str = NULL, `_intent` = NULL) {
+write_text_file_impl <- function(
+  path,
+  insert_line = NULL,
+  new_str = NULL,
+  old_str = NULL,
+  `_intent` = NULL
+) {
   check_string(path)
 
-  old_content <- validate_write_text_file_request(path, insert_line, new_str, old_str, call = rlang::caller_env())
+  old_content <- validate_write_text_file_request(
+    path,
+    insert_line,
+    new_str,
+    old_str,
+    call = rlang::caller_env()
+  )
 
   result <- if (!is.null(old_str) && !is.null(new_str)) {
     handle_str_replace(old_content, old_str, new_str, path)
@@ -162,7 +200,11 @@ handle_insert <- function(old_content, insert_line, new_str, path) {
   new_content <- c(
     if (insert_line > 0) old_content[1:insert_line] else character(0),
     new_str_lines,
-    if (insert_line < length(old_content)) old_content[(insert_line + 1):length(old_content)] else character(0)
+    if (insert_line < length(old_content)) {
+      old_content[(insert_line + 1):length(old_content)]
+    } else {
+      character(0)
+    }
   )
 
   operation <- if (length(old_content) == 0) {
@@ -194,7 +236,14 @@ handle_insert <- function(old_content, insert_line, new_str, path) {
   )
 }
 
-create_diff_display <- function(removed_lines, added_lines, path, context, context_before = character(0), context_after = character(0)) {
+create_diff_display <- function(
+  removed_lines,
+  added_lines,
+  path,
+  context,
+  context_before = character(0),
+  context_after = character(0)
+) {
   if (length(removed_lines) == 0 && length(added_lines) == 0) {
     return("No changes")
   }
