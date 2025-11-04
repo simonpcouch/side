@@ -220,147 +220,102 @@ get_config_dir <- function(subdir) {
 
 # When a user interrupts a streaming response, ellmer's Chat is left in an
 # inconsistent state. Normally, ellmer only adds turns to the Chat history after
-# a stream completes successfully. When we interrupt mid-stream:
-#
-# 1. The user Turn is never added (ellmer was still processing)
-# 2. The assistant Turn is never created (stream didn't complete)
-# 3. Any partial content shown to the user is lost
-#
-# This creates two problems:
-# - The Chat history is missing the interrupted exchange
-# - LLM APIs require tool_use to have corresponding tool_result, but interrupted
-#   tool requests may lack results
-#
-# This function patches the Chat to be in a valid, continuable state by:
-# - Reconstructing the user Turn from the original input
-# - Building an assistant Turn from all content that was streamed and shown
-# - Adding synthetic tool_result for any incomplete tool_request
-# - Properly structuring turns to match ellmer's conversation model:
-#   * Plain text responses: single assistant turn
-#   * Tool requests without results: assistant turn with requests + synthetic results
-#   * Tool requests with results: assistant turn (requests only) + separate user turn (results)
-# - Ensuring conversations can continue naturally after interrupt
-patch_interrupted_chat <- function(client, streamed_content, user_input) {
-  initial_user_turn <- ellmer::Turn(
-    role = "user",
-    contents = list(ellmer::ContentText(user_input))
-  )
-
-  assistant_contents <- list()
-  text_chunks <- character(0)
-
-  for (content in streamed_content) {
-    if (is.character(content)) {
-      text_chunks <- c(text_chunks, content)
-    } else if (S7::S7_inherits(content, ellmer::ContentText)) {
-      text_chunks <- c(text_chunks, content@text)
-    } else if (S7::S7_inherits(content, ellmer::Content)) {
-      if (length(text_chunks) > 0) {
-        assistant_contents <- c(
-          assistant_contents,
-          list(ellmer::ContentText(paste(text_chunks, collapse = "")))
-        )
-        text_chunks <- character(0)
+# a stream completes successfully. When we interrupt mid-stream,
+# we need to ensure that user/assistant turns alternate back-and-forth, and that 
+# all tool requests have matching tool results.
+# 
+# For the purposes of this app, interrupts either occur 1) during the tool 
+# calling loop or 2) not. 
+# 1) When during the tool calling loop, just confirm that tool calling loops 
+# appear complete by patching requests that don't have matching results with 
+# a text content. 
+# 2) When not during tool calling, process the streamed text content and 
+# let that form the assistant turn.
+patch_interrupted_chat <- function(client, streamed_content = NULL, user_input = NULL) {
+  # saveRDS(
+  #   list(client = client, streamed_content = streamed_content, user_input = user_input), 
+  #   "/Users/simoncouch/.config/side/before_patching.rds"
+  # )
+  request_ids <- character()
+  for (turn in client$get_turns()) {
+    .res <- lapply(turn@contents, function(c) {
+      if (S7::S7_inherits(c, ellmer::ContentToolRequest)) {
+        request_ids <<- c(request_ids, c@id)
       }
-      assistant_contents <- c(assistant_contents, list(content))
-    }
+    })
   }
 
-  if (length(text_chunks) > 0) {
-    assistant_contents <- c(
-      assistant_contents,
-      list(ellmer::ContentText(paste(text_chunks, collapse = "")))
-    )
-  }
-
-  tool_requests <- Filter(
-    function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
-    assistant_contents
-  )
-  tool_results <- Filter(
-    function(c) S7::S7_inherits(c, ellmer::ContentToolResult),
-    assistant_contents
-  )
-
-  result_request_ids <- character(0)
-  if (length(tool_results) > 0) {
-    result_request_ids <- vapply(tool_results, function(r) {
-      if (!is.null(r@request) && !is.null(r@request@id)) {
-        r@request@id
-      } else {
-        NA_character_
+  result_ids <- character()
+  for (turn in client$get_turns()) {
+    .res <- lapply(turn@contents, function(c) {
+      if (S7::S7_inherits(c, ellmer::ContentToolResult)) {
+        result_ids <<- c(result_ids, c@request@id)
       }
-    }, character(1))
-    result_request_ids <- result_request_ids[!is.na(result_request_ids)]
+    })
+  }
+  
+  requests_without_matches <- request_ids[!request_ids %in% result_ids]
+
+  old_turns <- client$get_turns()
+  new_turns <- list()
+  for (turn in old_turns) {
+    turn@contents <- lapply(turn@contents, function(c) {
+      if (S7::S7_inherits(c, ellmer::ContentToolRequest) && 
+          c@id %in% requests_without_matches) {
+        return(ellmer::ContentText(
+          paste0("_Tool call to `", c@name, "` interrupted._")
+        ))
+      }
+
+      c
+    })
+
+    new_turns <- c(new_turns, turn)
   }
 
-  incomplete_requests <- Filter(function(req) {
-    !is.null(req@id) && !(req@id %in% result_request_ids)
-  }, tool_requests)
-
-  for (req in incomplete_requests) {
-    synthetic_result <- ellmer::ContentToolResult(
-      value = "Tool execution was interrupted by user.",
-      request = req
-    )
-    tool_results <- c(tool_results, list(synthetic_result))
-    assistant_contents <- c(assistant_contents, list(synthetic_result))
+  # If there are requests without matches, the interruption happended during
+  # the tool calling loop. In that case, just patch the tool call turns and 
+  # don't worry about updating from other streamed content--ellmer already 
+  # had a chance to form complete turns up to the penultimate one.
+  if (length(requests_without_matches) > 0) {
+    client$set_turns(new_turns)
+    return(client)
   }
 
-  assistant_contents_without_results <- Filter(
-    function(c) !S7::S7_inherits(c, ellmer::ContentToolResult),
-    assistant_contents
-  )
+  if (!is.null(streamed_content)) {
+    text_content <- vapply(streamed_content, function(c) S7::S7_inherits(c, ellmer::ContentText), logical(1))
+    text_content <- paste0(vapply(streamed_content[text_content], function(c) c@text, character(1)), collapse = "")
 
-  has_tool_requests <- length(tool_requests) > 0
-  has_tool_results <- length(tool_results) > 0
-
-  if (!has_tool_requests) {
-    last_is_text <- if (length(assistant_contents) > 0) {
-      S7::S7_inherits(assistant_contents[[length(assistant_contents)]], ellmer::ContentText)
+    if (length(new_turns) == 0) {
+      last_turn_is_assistant <- TRUE
     } else {
-      FALSE
+      last_turn_is_assistant <- new_turns[[length(new_turns)]]@role == "Assistant"
     }
+    
+    if (last_turn_is_assistant) {
+      new_turns <- c(
+        new_turns, 
+        list(
+          ellmer::Turn("user", list(ellmer::ContentText(user_input))),
+          ellmer::Turn("assistant", list(ellmer::ContentText(text_content)))
+        )
+      )
+    } else {
+      # The most recent turn is a user turn, so update its contents with
+      # the new user input
+      last_user_turn <- new_turns[[length(new_turns)]]
+      last_user_turn@contents <- c(last_user_turn@contents, ellmer::ContentText(user_input))
+      new_turns[[length(new_turns)]] <- last_user_turn
 
-    if (!last_is_text) {
-      assistant_contents <- c(
-        assistant_contents,
-        list(ellmer::ContentText("Acknowledged."))
+      new_turns <- c(
+        new_turns,
+        list(ellmer::Turn("assistant", list(ellmer::ContentText(text_content))))
       )
     }
-
-    assistant_turn <- ellmer::Turn(
-      role = "assistant",
-      contents = assistant_contents
-    )
-
-    client$add_turn(initial_user_turn, assistant_turn)
-  } else if (has_tool_results) {
-    assistant_turn <- ellmer::Turn(
-      role = "assistant",
-      contents = assistant_contents_without_results
-    )
-
-    tool_result_turn <- ellmer::Turn(
-      role = "user",
-      contents = tool_results
-    )
-
-    client$add_turn(initial_user_turn, assistant_turn)
-
-    turns <- client$get_turns()
-    turns[[length(turns) + 1]] <- tool_result_turn
-    client$set_turns(turns)
-  } else {
-    assistant_turn <- ellmer::Turn(
-      role = "assistant",
-      contents = assistant_contents
-    )
-
-    client$add_turn(initial_user_turn, assistant_turn)
   }
 
-  invisible(client)
+  client$set_turns(new_turns)
+  client
 }
 
 check_inherits <- function(

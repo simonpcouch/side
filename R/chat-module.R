@@ -27,8 +27,7 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
     shiny::observeEvent(input$chat_user_input, label = "on_chat_user_input", {
       if (shiny::isolate(interrupt_flag())) {
         interrupt_flag(FALSE)
-
-        merge_with_tool_results(client, input$chat_user_input)
+        
       }
 
       last_input(input$chat_user_input)
@@ -209,9 +208,7 @@ chat_append_interruptible <- coro::async(function(
         )
       )
 
-      if (!is.null(client) && !is.null(user_input)) {
-        patch_interrupted_chat(client, res$as_list(), user_input)
-      }
+      patch_interrupted_chat(client, res$as_list(), user_input = user_input)
     }
 
     chat_append_("", chunk = "end")
@@ -223,43 +220,6 @@ chat_append_interruptible <- coro::async(function(
       res
     }
 })
-
-merge_with_tool_results <- function(client, user_message) {
-  turns <- client$get_turns()
-  if (length(turns) == 0) {
-    return(invisible(NULL))
-  }
-
-  last_turn <- turns[[length(turns)]]
-  if (last_turn@role != "user") {
-    return(invisible(NULL))
-  }
-
-  has_tool_results <- any(vapply(
-    last_turn@contents,
-    function(c) S7::S7_inherits(c, ellmer::ContentToolResult),
-    logical(1)
-  ))
-
-  if (!has_tool_results) {
-    return(invisible(NULL))
-  }
-
-  interruption_text <- paste0(
-    "\n\nThe user interrupted after the tool call completed and has provided this followup: ",
-    user_message
-  )
-
-  last_turn@contents <- c(
-    last_turn@contents,
-    list(ellmer::ContentText(interruption_text))
-  )
-
-  turns[[length(turns)]] <- last_turn
-  client$set_turns(turns)
-
-  invisible(NULL)
-}
 
 as_ellmer_turns <- function(messages) {
   if (is.null(messages) || length(messages) == 0) {
