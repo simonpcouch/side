@@ -1,5 +1,16 @@
 #' A coding agent for RStudio
 #'
+#' @description
+#' `side::kick()` is a coding agent for data science in RStudio,
+#' implemented entirely in R. Think of it something like Claude Code
+#' or Codex; it's situated in your project directory and can use tools
+#' to explore its surroundings. In addition, though, it has
+#' tools that allow it to explore your active R session and run R code
+#' in it.
+#'
+#' To get started with `side::kick()`, just run the function--it will
+#' walk you through the next steps!
+#'
 #' @param client An [ellmer::Chat] client to power the `side::kick()` app.
 #'   See the "Choosing a model" section below to learn more.
 #' @param ... Currently ignored.
