@@ -285,6 +285,7 @@ patch_interrupted_chat <- function(client, streamed_content = NULL, user_input =
   if (!is.null(streamed_content)) {
     text_content <- vapply(streamed_content, function(c) S7::S7_inherits(c, ellmer::ContentText), logical(1))
     text_content <- paste0(vapply(streamed_content[text_content], function(c) c@text, character(1)), collapse = "")
+    text_content <- paste0(text_content, "...\n\n_Streaming interrupted._")
 
     if (length(new_turns) == 0) {
       last_turn_is_assistant <- TRUE

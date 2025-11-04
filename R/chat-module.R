@@ -201,14 +201,28 @@ chat_append_interruptible <- coro::async(function(
     }
 
     if (interrupted) {
-      chat_append_(
-        htmltools::tags$span(
-          style = "color: #C55A11;",
-          " [Interrupted.]"
-        )
-      )
+      streamed_content <- res$as_list()
 
-      patch_interrupted_chat(client, res$as_list(), user_input = user_input)
+      has_tool_request <- any(vapply(
+        streamed_content,
+        function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
+        logical(1)
+      ))
+
+      if (has_tool_request) {
+        tool_requests <- Filter(
+          function(c) S7::S7_inherits(c, ellmer::ContentToolRequest),
+          streamed_content
+        )
+        last_request <- tool_requests[[length(tool_requests)]]
+        interrupt_msg <- paste0("_Tool call to `", last_request@name, "` interrupted._")
+      } else {
+        interrupt_msg <- "...\n\n_Streaming interrupted._"
+      }
+
+      chat_append_(interrupt_msg)
+
+      patch_interrupted_chat(client, streamed_content, user_input = user_input)
     }
 
     chat_append_("", chunk = "end")
