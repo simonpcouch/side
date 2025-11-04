@@ -49,7 +49,7 @@ options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
 
 # In .Rprofile for all sessions
 usethis::edit_r_profile()
-# Then add: 
+# Then add:
 options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
 }\if{html}{\out{</div>}}
 

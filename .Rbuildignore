@@ -11,3 +11,6 @@ inst/sandbox
 ^\.vscode$
 .git-blame-ignore-revs
 ^\.github$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

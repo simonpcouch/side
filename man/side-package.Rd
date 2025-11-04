@@ -8,6 +8,13 @@
 \description{
 Package development coding agent, demoing what's possible with btw.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://simonpcouch.github.io/side/}
+}
+
+}
 \author{
 \strong{Maintainer}: Simon Couch \email{simon.couch@posit.co}
 
