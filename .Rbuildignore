@@ -9,3 +9,4 @@ inst/prompts
 inst/sandbox
 ^[.]?air[.]toml$
 ^\.vscode$
+.git-blame-ignore-revs
