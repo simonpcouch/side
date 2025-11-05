@@ -1,3 +1,6 @@
+run_r_code_env <- new.env(parent = emptyenv())
+run_r_code_env$exec_env <- new.env(parent = .GlobalEnv)
+
 run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
   check_string(code)
 
@@ -9,7 +12,7 @@ run_r_code_impl <- function(code, persist = FALSE, `_intent` = NULL) {
   exec_env <- if (persist) {
     .GlobalEnv
   } else {
-    new.env(parent = .GlobalEnv)
+    run_r_code_env$exec_env
   }
 
   result <- tryCatch(
