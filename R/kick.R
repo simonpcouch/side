@@ -57,6 +57,14 @@
 #' late 2025, I do not recommend using local (e.g. [chat_ollama()]) models, but
 #' you can give it a try!
 #'
+#' @section Customizing behavior:
+#'
+#' You can customize the assistant's behavior for your project by creating a
+#' `CLAUDE.md`, `btw.md`, `llms.txt`, or `AGENTS.md` file in your project
+#' directory. The assistant will read the first file it finds (in that order)
+#' and include its contents in the system prompt, allowing you to provide
+#' project-specific instructions, coding conventions, or context.
+#'
 #' @export
 kick <- function(
   client = NULL,
