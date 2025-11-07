@@ -81,10 +81,9 @@ prompt_provider_selection <- function() {
   if (selection == length(choices)) {
     cli::cli_abort(
       c(
-        "Set the {.code side.client} option with 
+        "Set the {.code side.client} option with
          {.code options(side.client = ellmer::chat_*())} to continue.",
-        i = "To set the option every time you start R, add that line to 
-         {.file .Rprofile} with {.code usethis::edit_r_profile()}"
+        i = "See {.help side::kick} for more information."
       ),
       call = call2("side::kick()")
     )
