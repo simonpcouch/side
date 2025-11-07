@@ -11,6 +11,9 @@
 #' To get started with `side::kick()`, just run the function--it will
 #' walk you through the next steps!
 #'
+#' This function requires RStudio and will not launch in Positron or other
+#' R environments.
+#'
 #' @param client An [ellmer::Chat] client to power the `side::kick()` app.
 #'   See the "Choosing a model" section below to learn more.
 #' @param ... Currently ignored.
@@ -71,7 +74,7 @@ kick <- function(
   ...,
   host = getOption("shiny.host", "127.0.0.1")
 ) {
-  rstudioapi::verifyAvailable()
+  check_in_rstudio()
 
   if (!is.null(client)) {
     withr::local_options(side.client = client)
@@ -231,4 +234,17 @@ wait_for_app_launch <- function(url, max_seconds = 10) {
   }
 
   cli::cli_abort("App failed to start within {max_seconds} seconds")
+}
+
+check_in_rstudio <- function(call = rlang::caller_env()) {
+  rstudioapi::verifyAvailable()
+
+  if (identical(Sys.getenv("POSITRON"), "1")) {
+    cli::cli_abort(
+      c(
+        "{.fn side::kick} requires RStudio and is not supported in Positron."
+      ),
+      call = call
+    )
+  }
 }

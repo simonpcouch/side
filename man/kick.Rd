@@ -30,6 +30,9 @@ in it.
 
 To get started with \code{side::kick()}, just run the function--it will
 walk you through the next steps!
+
+This function requires RStudio and will not launch in Positron or other
+R environments.
 }
 \section{Choosing a model}{
 
