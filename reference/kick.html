@@ -115,6 +115,17 @@ quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
 late 2025, I do not recommend using local (e.g. <code><a href="https://ellmer.tidyverse.org/reference/chat_ollama.html" class="external-link">ellmer::chat_ollama()</a></code>) models, but
 you can give it a try!</p>
     </div>
+    <div class="section level2">
+    <h2 id="customizing-behavior">Customizing behavior<a class="anchor" aria-label="anchor" href="#customizing-behavior"></a></h2>
+
+
+
+<p>You can customize the assistant's behavior for your project by creating a
+<code>CLAUDE.md</code>, <code>btw.md</code>, <code>llms.txt</code>, or <code>AGENTS.md</code> file in your project
+directory. The assistant will read the first file it finds (in that order)
+and include its contents in the system prompt, allowing you to provide
+project-specific instructions, coding conventions, or context.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
