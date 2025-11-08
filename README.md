@@ -40,7 +40,7 @@ Then, run `side::kick()`. You might place `side::kick()` in your
 `.Rprofile` (perhaps with `usethis::edit_r_profile()`) to launch
 `side::kick()` every time you start R.
 
-`sick::kick()` is intended for use with RStudio’s *Sidebar*, a
+`side::kick()` is intended for use with RStudio’s *Sidebar*, a
 full-height pane that’s currently only available in [RStudio
 Dailies](https://dailies.rstudio.com/). Install RStudio, then search for
 “Sidebar” in the command palette.
