@@ -6,7 +6,9 @@ to explore its surroundings. In addition, though, it has
 tools that allow it to explore your active R session and run R code
 in it.
 To get started with side::kick(), just run the function–it will
-walk you through the next steps!
+walk you through the next steps! #' See
+vignettes(&quot;side&quot;, package = &quot;side&quot;) for more on getting started with
+side::kick(), including choosing a model and customizing behavior.
 This function requires RStudio and will not launch in Positron or other
 R environments."><meta property="og:description" content="side::kick() is a coding agent for data science in RStudio,
 implemented entirely in R. Think of it something like Claude Code
@@ -15,7 +17,9 @@ to explore its surroundings. In addition, though, it has
 tools that allow it to explore your active R session and run R code
 in it.
 To get started with side::kick(), just run the function–it will
-walk you through the next steps!
+walk you through the next steps! #' See
+vignettes(&quot;side&quot;, package = &quot;side&quot;) for more on getting started with
+side::kick(), including choosing a model and customizing behavior.
 This function requires RStudio and will not launch in Positron or other
 R environments."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -57,7 +61,9 @@ to explore its surroundings. In addition, though, it has
 tools that allow it to explore your active R session and run R code
 in it.</p>
 <p>To get started with <code>side::kick()</code>, just run the function–it will
-walk you through the next steps!</p>
+walk you through the next steps! #' See
+<code>vignettes("side", package = "side")</code> for more on getting started with
+<code>side::kick()</code>, including choosing a model and customizing behavior.</p>
 <p>This function requires RStudio and will not launch in Positron or other
 R environments.</p>
     </div>
@@ -90,47 +96,6 @@ Defaults to the value of <code>getOption("shiny.host", "127.0.0.1")</code>.</p><
     <p>Launches a shiny application as a background job in RStudio. The application
 is displayed in the RStudio viewer pane and this function will return after
 the application is launched successfully.</p>
-    </div>
-    <div class="section level2">
-    <h2 id="choosing-a-model">Choosing a model<a class="anchor" aria-label="anchor" href="#choosing-a-model"></a></h2>
-
-
-
-<p><code>side::kick()</code> can use any model provider available in <code><a href="https://ellmer.tidyverse.org/reference/chat-any.html" class="external-link">ellmer::chat()</a></code> to
-power the application. The app uses the <code>side.client</code> option (or the
-<code>side::kick(client)</code> argument if you prefer) to configure the ellmer Chat
-that powers the app; that option can be set to any <a href="https://ellmer.tidyverse.org/reference/Chat.html" class="external-link">ellmer::Chat</a> object.</p>
-<p>When you call <code>kick()</code> without a client configured, a setup flow will
-guide you through selecting a model. The setup flow will:</p><ol><li><p>Check which providers are available based on your API keys (stored in
-environment variables) from a preferred subset of providers.</p></li>
-<li><p>Allow you to select from available providers.</p></li>
-<li><p>Ask if you want to save this configuration a) just for the current R
-session or b) in this <em>and</em> future R sessions (by adding it to
-your <code>.Rprofile</code>).</p></li>
-</ol><p>You can also configure a client manually by setting the <code>side.client</code> option:</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># For the current session only</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>side.client <span class="op">=</span> <span class="fu">ellmer</span><span class="fu">::</span><span class="fu"><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">chat_anthropic</a></span><span class="op">(</span>model <span class="op">=</span> <span class="st">"claude-sonnet-4-5"</span><span class="op">)</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># In .Rprofile for all sessions</span></span>
-<span><span class="fu">usethis</span><span class="fu">::</span><span class="fu">edit_r_profile</span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="co"># Then add:</span></span>
-<span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>side.client <span class="op">=</span> <span class="fu">ellmer</span><span class="fu">::</span><span class="fu"><a href="https://ellmer.tidyverse.org/reference/chat_anthropic.html" class="external-link">chat_anthropic</a></span><span class="op">(</span>model <span class="op">=</span> <span class="st">"claude-sonnet-4-5"</span><span class="op">)</span><span class="op">)</span></span></code></pre><p></p></div>
-<p><strong><code>side::kick()</code> was developed with Claude Sonnet 4.5 in mind</strong>; use that
-model for best results. That said, any frontier non-thinking (or
-quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
-late 2025, I do not recommend using local (e.g. <code><a href="https://ellmer.tidyverse.org/reference/chat_ollama.html" class="external-link">ellmer::chat_ollama()</a></code>) models, but
-you can give it a try!</p>
-    </div>
-    <div class="section level2">
-    <h2 id="customizing-behavior">Customizing behavior<a class="anchor" aria-label="anchor" href="#customizing-behavior"></a></h2>
-
-
-
-<p>You can customize the assistant's behavior for your project by creating a
-<code>CLAUDE.md</code>, <code>btw.md</code>, <code>llms.txt</code>, or <code>AGENTS.md</code> file in your project
-directory. The assistant will read the first file it finds (in that order)
-and include its contents in the system prompt, allowing you to provide
-project-specific instructions, coding conventions, or context.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
