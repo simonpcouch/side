@@ -29,55 +29,10 @@ tools that allow it to explore your active R session and run R code
 in it.
 
 To get started with \code{side::kick()}, just run the function--it will
-walk you through the next steps!
+walk you through the next steps! #' See
+\code{vignettes("side", package = "side")} for more on getting started with
+\code{side::kick()}, including choosing a model and customizing behavior.
 
 This function requires RStudio and will not launch in Positron or other
 R environments.
 }
-\section{Choosing a model}{
-
-
-\code{side::kick()} can use any model provider available in \code{\link[ellmer:chat-any]{ellmer::chat()}} to
-power the application. The app uses the \code{side.client} option (or the
-\code{side::kick(client)} argument if you prefer) to configure the ellmer Chat
-that powers the app; that option can be set to any \link[ellmer:Chat]{ellmer::Chat} object.
-
-When you call \code{kick()} without a client configured, a setup flow will
-guide you through selecting a model. The setup flow will:
-\enumerate{
-\item Check which providers are available based on your API keys (stored in
-environment variables) from a preferred subset of providers.
-\item Allow you to select from available providers.
-\item Ask if you want to save this configuration a) just for the current R
-session or b) in this \emph{and} future R sessions (by adding it to
-your \code{.Rprofile}).
-}
-
-You can also configure a client manually by setting the \code{side.client} option:
-
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# For the current session only
-options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
-
-# In .Rprofile for all sessions
-usethis::edit_r_profile()
-# Then add:
-options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
-}\if{html}{\out{</div>}}
-
-\strong{\code{side::kick()} was developed with Claude Sonnet 4.5 in mind}; use that
-model for best results. That said, any frontier non-thinking (or
-quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
-late 2025, I do not recommend using local (e.g. \code{\link[ellmer:chat_ollama]{ellmer::chat_ollama()}}) models, but
-you can give it a try!
-}
-
-\section{Customizing behavior}{
-
-
-You can customize the assistant's behavior for your project by creating a
-\code{CLAUDE.md}, \code{btw.md}, \code{llms.txt}, or \code{AGENTS.md} file in your project
-directory. The assistant will read the first file it finds (in that order)
-and include its contents in the system prompt, allowing you to provide
-project-specific instructions, coding conventions, or context.
-}
-

@@ -7,6 +7,8 @@ Description: Package development coding agent, demoing what's possible
     with btw.
 License: MIT + file LICENSE
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Encoding: UTF-8
@@ -40,3 +42,4 @@ Remotes:
     tidyverse/ellmer#735,
     posit-dev/shinychat/pkg-r
 URL: https://simonpcouch.github.io/side/
+VignetteBuilder: knitr

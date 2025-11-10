@@ -9,7 +9,9 @@
 #' in it.
 #'
 #' To get started with `side::kick()`, just run the function--it will
-#' walk you through the next steps!
+#' walk you through the next steps! #' See
+#' `vignettes("side", package = "side")` for more on getting started with
+#' `side::kick()`, including choosing a model and customizing behavior.
 #'
 #' This function requires RStudio and will not launch in Positron or other
 #' R environments.
@@ -24,50 +26,6 @@
 #' Launches a shiny application as a background job in RStudio. The application
 #' is displayed in the RStudio viewer pane and this function will return after
 #' the application is launched successfully.
-#'
-#' @section Choosing a model:
-#'
-#' `side::kick()` can use any model provider available in [ellmer::chat()] to
-#' power the application. The app uses the `side.client` option (or the
-#' `side::kick(client)` argument if you prefer) to configure the ellmer Chat
-#' that powers the app; that option can be set to any [ellmer::Chat] object.
-#'
-#' When you call `kick()` without a client configured, a setup flow will
-#' guide you through selecting a model. The setup flow will:
-#'
-#' 1. Check which providers are available based on your API keys (stored in
-#'    environment variables) from a preferred subset of providers.
-#' 2. Allow you to select from available providers.
-#' 3. Ask if you want to save this configuration a) just for the current R
-#'    session or b) in this _and_ future R sessions (by adding it to
-#'    your `.Rprofile`).
-#'
-#' You can also configure a client manually by setting the `side.client` option:
-#'
-#' ```r
-#' # For the current session only
-#' options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
-#'
-#' # In .Rprofile for all sessions
-#' usethis::edit_r_profile()
-#' # Then add:
-#' options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
-#' ```
-#'
-#' **`side::kick()` was developed with Claude Sonnet 4.5 in mind**; use that
-#' model for best results. That said, any frontier non-thinking (or
-#' quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of
-#' late 2025, I do not recommend using local (e.g. [chat_ollama()]) models, but
-#' you can give it a try!
-#'
-#' @section Customizing behavior:
-#'
-#' You can customize the assistant's behavior for your project by creating a
-#' `CLAUDE.md`, `btw.md`, `llms.txt`, or `AGENTS.md` file in your project
-#' directory. The assistant will read the first file it finds (in that order)
-#' and include its contents in the system prompt, allowing you to provide
-#' project-specific instructions, coding conventions, or context.
-#'
 #' @export
 kick <- function(
   client = NULL,

@@ -1,0 +1,78 @@
+---
+title: "Getting started with sidekick"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with sidekick}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(side)
+```
+
+`side::kick()` is a coding agent for data science in RStudio, implemented entirely in R. Think of it something like Claude Code or Codex; it's situated in your project directory and can use tools to explore its surroundings. In addition, though, it has tools that allow it to explore your active R session and run R code in it.
+
+## Installation
+
+To get started, install with:
+
+```r
+pak::pak("simonpcouch/side")
+```
+
+The application requires RStudio and will not launch in Positron or other R environments. `side::kick()` is intended for use with RStudio's *Sidebar*, a full-height pane that's currently only available in [RStudio Dailies](https://dailies.rstudio.com/). Install RStudio, then search for "Sidebar" in the command palette.
+
+## Choosing a model
+
+`side::kick()` can use any model provider available in `ellmer::chat()` to power the application. The app uses the `side.client` option (or the `side::kick(client)` argument if you prefer) to configure the ellmer Chat that powers the app; that option can be set to any `ellmer::Chat` object.
+
+When you call `kick()` without a client configured, a setup flow will guide you through selecting a model. The setup flow will check which providers are available based on your API keys (stored in environment variables) from a preferred subset of providers, allow you to select from available providers, and ask if you want to save this configuration just for the current R session or in this _and_ future R sessions (by adding it to your `.Rprofile`).
+
+You can also configure a client manually by setting the `side.client` option:
+
+```r
+# For the current session only ------------------------
+options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
+
+# In .Rprofile for all sessions -----------------------
+usethis::edit_r_profile()
+
+# Then, add:
+options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
+```
+
+**`side::kick()` was developed with Claude Sonnet 4.5 in mind**; use that model for best results. That said, any frontier non-thinking (or quickly-thinking) model like GPT 4.1 or Gemini 2.5 Pro will do fine. As of late 2025, I do not recommend using local (e.g. `chat_ollama()`) models, but you can give it a try!
+
+## Key features
+
+The agent can **see your active R session** to explore your computational environment. It has access to objects, data frames, and loaded packages via btw tools for environment introspection. This means you can ask it questions about your data and iterate on analyses. By default, the agent will run code in a child of your global environment so that it cannot create objects in your environment that can't be easily reproduced. To get `side::kick()` to assign in your global environment, ask it to write its analysis code in a file as it goes so that you can reproduce your analyses later.
+
+`side::kick()` can also **read and write files**. File writes trigger an approval workflow, giving you a chance to review changes before they're applied. The diff display shows context around changes, making it easy to understand what the agent is proposing.
+
+`side::kick()` can also **execute shell commands** to e.g. interface with git or move files around. Potentially destructive commands trigger an approval workflow, similar to file writes. This gives you control over what gets executed while still allowing the agent to help with routine command-line tasks.
+
+When working on complex tasks, the agent can **create and execute plans**. This allows it to break down multi-step work and track progress through extended sessions, helping maintain context over longer-horizon tasks. Plans are displayed in the chat interface so you can see what the agent is working on at any given time.
+
+You can **stop execution mid-stream and reroute the agent** without losing conversation history by pressing Esc. Interactive approval for write operations means you're always in control of what changes are applied to your project. If the agent is heading in the wrong direction, interrupt it and provide new guidance.
+
+**Chat history persists across R sessions**, so you can pick up where you left off after closing RStudio. The app stores the three most recent chats for a given project, and 15 chats across all projects maximum; for typical chats, this is a few megabytes of stored content total.
+
+Finally, the agent can **fetch and apply skills**--markdown files describing task-specific procedures. This allows you to customize the agent's behavior for project-specific workflows, ensuring it follows your preferred patterns and practices. You can add custom skills in `~/.config/side/skills` on macOS/Linux or `%APPDATA%/side/skills` on Windows. User skills override built-in skills with the same name.
+
+## Customizing behavior
+
+You can customize the assistant's behavior for your project by creating a `CLAUDE.md`, `btw.md`, `llms.txt`, or `AGENTS.md` file in your project directory. The assistant will read the first file it finds (searching in the order shown above) and include its contents in the system prompt, allowing you to provide project-specific instructions, coding conventions, or context.
+
+For example, you might create a `CLAUDE.md` file with instructions like:
+
+> Prefer base R over tidyverse.
+
+The agent will follow these instructions when working in your project, helping maintain consistency with your preferred patterns and practices.
