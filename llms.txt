@@ -82,3 +82,9 @@ is implemented with [btw](https://posit-dev.github.io/btw/),
 - [`kick()`](https://simonpcouch.github.io/side/reference/kick.md) : A
   coding agent for RStudio
 
+# Articles
+
+### All vignettes
+
+- [Getting started with
+  sidekick](https://simonpcouch.github.io/side/articles/side.md):
