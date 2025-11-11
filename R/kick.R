@@ -135,6 +135,7 @@ create_kick_file <- function(env_url) {
   main_config <- system.file("agents", "main.md", package = "side")
   prompt_path <- append_skills(main_config)
   prompt_path <- append_user_context(prompt_path, working_dir)
+  prompt_path <- normalizePath(prompt_path, winslash = "/")
   client_code <- fetch_side_client(prompt_path)
 
   persist <- should_persist()
