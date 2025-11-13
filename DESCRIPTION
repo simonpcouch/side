@@ -40,6 +40,6 @@ Imports:
 Remotes:
     posit-dev/btw,
     tidyverse/ellmer#735,
-    posit-dev/shinychat/pkg-r
+    posit-dev/shinychat/pkg-r#154
 URL: https://simonpcouch.github.io/side/
 VignetteBuilder: knitr
