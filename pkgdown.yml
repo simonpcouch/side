@@ -3,7 +3,7 @@ pkgdown: 2.2.0
 pkgdown_sha: ~
 articles:
   side: side.html
-last_built: 2025-11-13T16:10Z
+last_built: 2025-11-13T16:37Z
 urls:
   reference: https://simonpcouch.github.io/side/reference
   article: https://simonpcouch.github.io/side/articles
