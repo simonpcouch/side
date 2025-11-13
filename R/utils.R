@@ -179,7 +179,18 @@ load_chat <- function(chat_file, fresh_client) {
   }
 
   old_client <- readRDS(chat_file)
-  fresh_client$set_turns(old_client$get_turns())
+
+  tryCatch(
+    {
+      fresh_client$set_turns(old_client$get_turns())
+    },
+    error = function(e) {
+      cli::cli_inform(c(
+        "!" = "Chat from previous ellmer version failed to load.",
+        "i" = "Starting a new chat."
+      ))
+    }
+  )
 
   fresh_client
 }
