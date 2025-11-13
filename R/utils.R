@@ -325,7 +325,7 @@ patch_interrupted_chat <- function(
       last_turn_is_assistant <- TRUE
     } else {
       last_turn_is_assistant <- new_turns[[length(new_turns)]]@role ==
-        "Assistant"
+        "assistant"
     }
 
     if (last_turn_is_assistant) {
