@@ -39,6 +39,6 @@ Imports:
     yaml
 Remotes:
     tidyverse/ellmer,
-    posit-dev/shinychat/pkg-r#154
+    posit-dev/shinychat/pkg-r
 URL: https://simonpcouch.github.io/side/
 VignetteBuilder: knitr
