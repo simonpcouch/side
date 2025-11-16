@@ -38,7 +38,6 @@ Imports:
     withr,
     yaml
 Remotes:
-    tidyverse/ellmer,
     posit-dev/shinychat/pkg-r
 URL: https://simonpcouch.github.io/side/
 VignetteBuilder: knitr

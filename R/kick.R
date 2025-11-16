@@ -28,19 +28,13 @@
 #' the application is launched successfully.
 #' @export
 kick <- function(
-  client = NULL,
+  client = getOption("side.client"),
   ...,
   host = getOption("shiny.host", "127.0.0.1")
 ) {
   check_in_rstudio()
 
-  if (!is.null(client)) {
-    withr::local_options(side.client = client)
-  }
-
-  if (is.null(getOption("side.client"))) {
-    setup_client()
-  }
+  client <- setup_client(client)
 
   port <- find_available_port()
   env_port <- find_available_port()
@@ -48,7 +42,7 @@ kick <- function(
 
   launch_env_server(env_url)
 
-  app_dir <- create_kick_dir(env_url)
+  app_dir <- create_kick_dir(env_url, client)
 
   run_in_background(app_dir, "side", host, port)
 
@@ -120,14 +114,14 @@ find_available_port <- function() {
   sample(safe_ports, 1)
 }
 
-create_kick_dir <- function(env_url) {
+create_kick_dir <- function(env_url, client) {
   dir <- normalizePath(tempdir(), winslash = "/")
-  app_file <- create_kick_file(env_url)
+  app_file <- create_kick_file(env_url, client)
   file.copy(app_file, file.path(dir, "app.R"), overwrite = TRUE)
   dir
 }
 
-create_kick_file <- function(env_url) {
+create_kick_file <- function(env_url, client) {
   template_path <- system.file("client.R", package = "side")
   template <- paste(readLines(template_path, warn = FALSE), collapse = "\n")
 
@@ -135,13 +129,18 @@ create_kick_file <- function(env_url) {
   main_config <- system.file("agents", "main.md", package = "side")
   prompt_path <- append_skills(main_config)
   prompt_path <- append_user_context(prompt_path, working_dir)
-  prompt_path <- normalizePath(prompt_path, winslash = "/")
-  client_code <- fetch_side_client(prompt_path)
+
+  system_prompt <- paste(readLines(prompt_path, warn = FALSE), collapse = "\n")
+  client$set_system_prompt(system_prompt)
+
+  client_path <- tempfile(fileext = ".rds")
+  saveRDS(client, client_path)
+  client_path <- normalizePath(client_path, winslash = "/")
 
   persist <- should_persist()
 
   app_code <- template
-  app_code <- gsub("{{client_code}}", client_code, app_code, fixed = TRUE)
+  app_code <- gsub("{{client_path}}", client_path, app_code, fixed = TRUE)
   app_code <- gsub("{{env_url}}", env_url, app_code, fixed = TRUE)
   app_code <- gsub("{{working_dir}}", working_dir, app_code, fixed = TRUE)
   app_code <- gsub("{{persist}}", as.character(persist), app_code, fixed = TRUE)

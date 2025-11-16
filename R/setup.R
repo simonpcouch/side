@@ -1,4 +1,19 @@
-setup_client <- function() {
+setup_client <- function(client = NULL, call = rlang::caller_env()) {
+  if (!is.null(client)) {
+    if (inherits(client, "Chat")) {
+      return(client)
+    } else if (is.character(client) && length(client) == 1) {
+      if (length(gregexpr("/", client, fixed = TRUE)[[1]]) == 1) {
+        return(ellmer::chat(client))
+      }
+    }
+
+    cli::cli_abort(
+      "{.arg client} must be a Chat object, not {.obj_type_friendly {client}}.",
+      call = call
+    )
+  }
+
   if (!interactive()) {
     cli::cli_abort(
       c(
@@ -10,13 +25,7 @@ setup_client <- function() {
     )
   }
 
-  client_info <- prompt_provider_selection()
-
-  if (!is.null(client_info)) {
-    prompt_persistence_selection(client_info)
-  }
-
-  invisible(NULL)
+  prompt_provider_selection()
 }
 
 prompt_provider_selection <- function() {
@@ -94,14 +103,12 @@ prompt_provider_selection <- function() {
 
   options(side.client = client)
 
-  list(
-    client = client,
-    fn_name = selected_info$fn_name,
-    model = selected_info$model
-  )
+  prompt_persistence_selection(client, selected_info$fn_name, selected_info$model)
+
+  client
 }
 
-prompt_persistence_selection <- function(client_info) {
+prompt_persistence_selection <- function(client, fn_name, model) {
   choices <- c(
     "Just for this R session",
     "In this and future R sessions"
@@ -116,7 +123,7 @@ prompt_persistence_selection <- function(client_info) {
     return(invisible(NULL))
   }
 
-  persist_client_option(client_info$fn_name, client_info$model)
+  persist_client_option(fn_name, model)
 
   invisible(NULL)
 }

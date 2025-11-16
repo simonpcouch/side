@@ -18,7 +18,7 @@ addResourcePath("side", system.file("www", package = "side"))
 working_dir <- '{{working_dir}}'
 .persist <- {{persist}}
 
-{{client_code}}
+client <- readRDS('{{client_path}}')
 
 chat_files <- side:::get_chat_files(working_dir, persist = .persist)
 if (length(chat_files) > 0) {

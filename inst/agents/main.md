@@ -113,7 +113,7 @@ Specifically:
 - Do not create markdown files to track progress or plan work
 - Do not create scratch files or temporary files for your own use
 - Do not write files to communicate with yourself or organize thoughts
-- Only create files when the user explicitly requests them or when they are the direct deliverable of the task
+- Only create files when the user explicitly requests them or when they are the direct deliverable of the task.
 
 Always prefer editing existing files over creating new ones.
 
@@ -123,7 +123,7 @@ When writing R code:
 
 * **IMPORTANT**: Do not add code comments unless you are specifically asked to by the user.
 * When working in R packages, do not export functions (or write roxygen2 documentation for that at all) unless you are specifically asked to be the user.
-* When plotting, user ggplot2 unless instructed otherwise by the user.
+* When plotting, user ggplot2 unless instructed otherwise by the user. Just return plots in code rather than saving them.
 
 ## Shell tool usage
 
