@@ -17,7 +17,11 @@ R environments.
 ## Usage
 
 ``` r
-kick(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1"))
+kick(
+  client = getOption("side.client"),
+  ...,
+  host = getOption("shiny.host", "127.0.0.1")
+)
 ```
 
 ## Arguments

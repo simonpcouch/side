@@ -1,6 +1,8 @@
-# side: Package Development Coding Agent
+# side: A Coding Agent for RStudio
 
-Package development coding agent, demoing what's possible with btw.
+A coding agent for data science in RStudio, implemented entirely in R.
+It can interact with your files, talk to your active R session, and run
+code.
 
 ## See also
 

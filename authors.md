@@ -6,11 +6,11 @@
 
 ## Citation
 
-Couch S (2025). *side: Package Development Coding Agent*. R package
-version 0.0.0.9000, <https://simonpcouch.github.io/side/>.
+Couch S (2025). *side: A Coding Agent for RStudio*. R package version
+0.0.0.9000, <https://simonpcouch.github.io/side/>.
 
     @Manual{,
-      title = {side: Package Development Coding Agent},
+      title = {side: A Coding Agent for RStudio},
       author = {Simon Couch},
       year = {2025},
       note = {R package version 0.0.0.9000},
