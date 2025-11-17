@@ -4,7 +4,11 @@
 \alias{kick}
 \title{A coding agent for RStudio}
 \usage{
-kick(client = NULL, ..., host = getOption("shiny.host", "127.0.0.1"))
+kick(
+  client = getOption("side.client"),
+  ...,
+  host = getOption("shiny.host", "127.0.0.1")
+)
 }
 \arguments{
 \item{client}{An \link[ellmer:Chat]{ellmer::Chat} client to power the \code{side::kick()} app.

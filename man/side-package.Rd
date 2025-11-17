@@ -4,9 +4,9 @@
 \name{side-package}
 \alias{side}
 \alias{side-package}
-\title{side: Package Development Coding Agent}
+\title{side: A Coding Agent for RStudio}
 \description{
-Package development coding agent, demoing what's possible with btw.
+A coding agent for data science in RStudio, implemented entirely in R. It can interact with your files, talk to your active R session, and run code.
 }
 \seealso{
 Useful links:

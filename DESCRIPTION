@@ -1,10 +1,11 @@
 Package: side
-Title: Package Development Coding Agent
+Title: A Coding Agent for RStudio
 Version: 0.0.0.9000
 Authors@R: 
     person("Simon", "Couch", , "simon.couch@posit.co", role = c("aut", "cre"))
-Description: Package development coding agent, demoing what's possible
-    with btw.
+Description: A coding agent for data science in RStudio, 
+    implemented entirely in R. It can interact with your files, 
+    talk to your active R session, and run code.
 License: MIT + file LICENSE
 Suggests: 
     knitr,
