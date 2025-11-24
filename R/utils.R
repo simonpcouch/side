@@ -373,22 +373,4 @@ check_inherits <- function(
   invisible(NULL)
 }
 
-strip_yaml_frontmatter <- function(lines) {
-  if (length(lines) == 0 || lines[1] != "---") {
-    return(lines)
-  }
-
-  yaml_end <- which(lines == "---")
-  if (length(yaml_end) < 2) {
-    return(lines)
-  }
-
-  content_start <- yaml_end[2] + 1
-  if (content_start > length(lines)) {
-    return(character(0))
-  }
-
-  lines[content_start:length(lines)]
-}
-
 interactive <- NULL

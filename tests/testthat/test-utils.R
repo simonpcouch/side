@@ -63,32 +63,6 @@ test_that("check_inherits errors informatively with wrong class", {
   expect_snapshot(check_inherits("a string", "myclass"), error = TRUE)
 })
 
-test_that("strip_yaml_frontmatter handles various YAML patterns", {
-  lines_with_yaml <- c(
-    "---",
-    "title: Test",
-    "---",
-    "content line 1",
-    "content line 2"
-  )
-  expect_equal(
-    strip_yaml_frontmatter(lines_with_yaml),
-    c("content line 1", "content line 2")
-  )
-
-  lines_no_yaml <- c("content line 1", "content line 2")
-  expect_equal(strip_yaml_frontmatter(lines_no_yaml), lines_no_yaml)
-
-  lines_incomplete_yaml <- c("---", "title: Test", "content line 1")
-  expect_equal(
-    strip_yaml_frontmatter(lines_incomplete_yaml),
-    lines_incomplete_yaml
-  )
-
-  lines_empty_after_yaml <- c("---", "title: Test", "---")
-  expect_equal(strip_yaml_frontmatter(lines_empty_after_yaml), character(0))
-})
-
 test_that("get_chat_dir returns temp dir when persist is FALSE", {
   result <- get_chat_dir(persist = FALSE)
   expect_equal(result, file.path(tempdir(), "side_chats"))
