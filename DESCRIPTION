@@ -1,6 +1,6 @@
 Package: side
 Title: A Coding Agent for RStudio
-Version: 0.0.2
+Version: 0.0.2.9000
 Authors@R: 
     person("Simon", "Couch", , "simon.couch@posit.co", role = c("aut", "cre"))
 Description: A coding agent for data science in RStudio, 

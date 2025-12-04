@@ -1,3 +1,5 @@
+# side (development version)
+
 # side 0.0.2
 
 Aligned Skills with Claude's storage format. Skills now use a directory-based 
