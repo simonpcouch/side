@@ -5,5 +5,5 @@
     Condition
       Error:
       ! Skill "nonexistent-skill" not found.
-      i Available skills: "write-unit-tests"
+      i Available skills: "skill-creator" and "write-unit-tests"
 
