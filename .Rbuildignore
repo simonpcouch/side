@@ -14,3 +14,4 @@ inst/sandbox
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
+plans/

@@ -1,7 +1,7 @@
 fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
-  skill_path <- find_skill(skill_name)
+  skill_info <- find_skill(skill_name)
 
-  if (is.null(skill_path)) {
+  if (is.null(skill_info)) {
     available <- list_available_skills()
     skill_names <- vapply(available, function(x) x$name, character(1))
     cli::cli_abort(
@@ -13,7 +13,7 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
     )
   }
 
-  skill_content <- readLines(skill_path, warn = FALSE)
+  skill_content <- readLines(skill_info$path, warn = FALSE)
 
   # Remove YAML frontmatter if present
   content_start <- 1
@@ -29,11 +29,16 @@ fetch_skill_impl <- function(skill_name, `_intent` = NULL) {
     collapse = "\n"
   )
 
+  resources <- list_skill_resources(skill_info$base_dir)
+  resources_listing <- format_resources_listing(resources, skill_name)
+
+  full_content <- paste0(skill_text, resources_listing)
+
   ellmer::ContentToolResult(
-    value = skill_text,
+    value = full_content,
     extra = list(
       display = list(
-        markdown = skill_text,
+        markdown = full_content,
         title = htmltools::HTML(sprintf(
           "Skill: <code>%s</code>",
           skill_name
@@ -49,9 +54,13 @@ find_skill <- function(skill_name) {
   skill_dirs <- get_skill_directories()
 
   for (dir in skill_dirs) {
-    skill_path <- file.path(dir, paste0(skill_name, ".md"))
-    if (file.exists(skill_path)) {
-      return(skill_path)
+    skill_dir <- file.path(dir, skill_name)
+    skill_md_path <- file.path(skill_dir, "SKILL.md")
+    if (dir.exists(skill_dir) && file.exists(skill_md_path)) {
+      return(list(
+        path = skill_md_path,
+        base_dir = skill_dir
+      ))
     }
   }
 
@@ -93,19 +102,22 @@ list_available_skills <- function() {
       next
     }
 
-    skill_files <- list.files(dir, pattern = "\\.md$", full.names = TRUE)
+    subdirs <- list.dirs(dir, full.names = TRUE, recursive = FALSE)
 
-    for (skill_file in skill_files) {
-      metadata <- extract_skill_metadata(skill_file)
-      skill_name <- tools::file_path_sans_ext(basename(skill_file))
+    for (subdir in subdirs) {
+      skill_md_path <- file.path(subdir, "SKILL.md")
+      if (file.exists(skill_md_path)) {
+        metadata <- extract_skill_metadata(skill_md_path)
+        skill_name <- basename(subdir)
 
-      # User skills override built-in skills with same name
-      if (!skill_name %in% names(all_skills)) {
-        all_skills[[skill_name]] <- list(
-          name = skill_name,
-          description = metadata$description %||% "No description available",
-          path = skill_file
-        )
+        # User skills override built-in skills with same name
+        if (!skill_name %in% names(all_skills)) {
+          all_skills[[skill_name]] <- list(
+            name = skill_name,
+            description = metadata$description %||% "No description available",
+            path = skill_md_path
+          )
+        }
       }
     }
   }
@@ -164,6 +176,71 @@ format_skills_section <- function() {
     paste(skill_items, collapse = "\n"),
     "\n\nTo use a skill, call `fetch_skill(skill_name = \"skill-name\")`."
   )
+}
+
+list_skill_resources <- function(skill_dir) {
+  list(
+    scripts = list_files_in_subdir(skill_dir, "scripts"),
+    references = list_files_in_subdir(skill_dir, "references"),
+    assets = list_files_in_subdir(skill_dir, "assets")
+  )
+}
+
+list_files_in_subdir <- function(base_dir, subdir) {
+  full_path <- file.path(base_dir, subdir)
+  if (!dir.exists(full_path)) {
+    return(character(0))
+  }
+  list.files(full_path, full.names = FALSE)
+}
+
+has_resources <- function(resources) {
+  length(resources$scripts) > 0 ||
+    length(resources$references) > 0 ||
+    length(resources$assets) > 0
+}
+
+format_resources_listing <- function(resources, skill_name) {
+  if (!has_resources(resources)) {
+    return("")
+  }
+
+  parts <- character()
+
+  parts <- c(parts, "\n\n---\n\n## Bundled Resources\n")
+  parts <- c(parts, "This skill includes bundled resources that you can access on-demand:\n")
+
+  if (length(resources$scripts) > 0) {
+    parts <- c(parts, "\n### Executable Scripts\n")
+    script_list <- paste0("- `", resources$scripts, "`", collapse = "\n")
+    parts <- c(parts, script_list)
+    parts <- c(parts, sprintf(
+      "\n\nExecute a script: `execute_skill_script(skill_name = \"%s\", script = \"script-name\")`",
+      skill_name
+    ))
+  }
+
+  if (length(resources$references) > 0) {
+    parts <- c(parts, "\n\n### Reference Documentation\n")
+    ref_list <- paste0("- `", resources$references, "`", collapse = "\n")
+    parts <- c(parts, ref_list)
+    parts <- c(parts, sprintf(
+      "\n\nFetch a reference: `fetch_skill_reference(skill_name = \"%s\", reference = \"reference-name\")`",
+      skill_name
+    ))
+  }
+
+  if (length(resources$assets) > 0) {
+    parts <- c(parts, "\n\n### Asset Templates\n")
+    asset_list <- paste0("- `", resources$assets, "`", collapse = "\n")
+    parts <- c(parts, asset_list)
+    parts <- c(parts, sprintf(
+      "\n\nGet an asset: `get_skill_asset(skill_name = \"%s\", asset = \"asset-name\")`",
+      skill_name
+    ))
+  }
+
+  paste(parts, collapse = "")
 }
 
 tool_fetch_skill <- function() {

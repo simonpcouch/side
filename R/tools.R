@@ -35,7 +35,10 @@ sidekick_tools <- function(socket_url = NULL) {
     tools_to_reroute,
     list(
       tool_update_plan = tool_update_plan(),
-      tool_fetch_skill = tool_fetch_skill()
+      tool_fetch_skill = tool_fetch_skill(),
+      tool_fetch_skill_reference = tool_fetch_skill_reference(),
+      tool_execute_skill_script = tool_execute_skill_script(),
+      tool_get_skill_asset = tool_get_skill_asset()
     )
   )
 }
