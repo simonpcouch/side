@@ -2,6 +2,8 @@
 
 ## side (development version)
 
+## side 0.0.2
+
 Aligned Skills with Claude’s storage format. Skills now use a
 directory-based format with `SKILL.md` instead of standalone `.md`
 files. User skills in `~/.config/side/skills/` must be migrated to the
