@@ -340,7 +340,8 @@ supports_thinking <- function(provider) {
 
 #' @export
 supports_thinking.ProviderAnthropic <- function(provider) {
-  TRUE
+  model <- provider@model
+  grepl("claude-[a-z]+-([4-9]|[0-9]{2,})", model, ignore.case = TRUE)
 }
 
 #' @export
@@ -388,4 +389,9 @@ thinking_is_enabled <- function(client) {
   }
 
   FALSE
+}
+
+client_supports_thinking <- function(client) {
+  provider <- client$get_provider()
+  supports_thinking(provider)
 }

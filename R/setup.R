@@ -39,17 +39,17 @@ prompt_provider_selection <- function() {
       }
     ),
     list(
-      name = "OpenAI (GPT 4.1)",
+      name = "OpenAI (GPT 5.2)",
       fn_name = "chat_openai",
-      model = "gpt-4.1",
-      create_client = function() ellmer::chat_openai(model = "gpt-4.1")
+      model = "gpt-5.2",
+      create_client = function() ellmer::chat_openai(model = "gpt-5.2")
     ),
     list(
-      name = "Google Gemini (Gemini 2.5 Pro)",
+      name = "Google Gemini (Gemini 3 Pro)",
       fn_name = "chat_google_gemini",
-      model = "gemini-2.5-pro",
+      model = "gemini-3-pro",
       create_client = function() {
-        ellmer::chat_google_gemini(model = "gemini-2.5-pro")
+        ellmer::chat_google_gemini(model = "gemini-3-pro")
       }
     ),
     list(
@@ -103,7 +103,11 @@ prompt_provider_selection <- function() {
 
   options(side.client = client)
 
-  prompt_persistence_selection(client, selected_info$fn_name, selected_info$model)
+  prompt_persistence_selection(
+    client,
+    selected_info$fn_name,
+    selected_info$model
+  )
 
   client
 }

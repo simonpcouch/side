@@ -132,16 +132,27 @@ server <- function(input, output, session) {
   side:::install_thinking_stream_hook()
   session$userData$approval_resolvers <- fastmap::fastmap()
 
+  thinking_supported <- side:::client_supports_thinking(client)
   thinking_enabled <- reactiveVal(side:::thinking_is_enabled(client))
 
   session$onFlushed(function() {
-    session$sendCustomMessage(
-      "side-thinking-state",
-      list(enabled = shiny::isolate(thinking_enabled()), animate = FALSE)
-    )
+    if (thinking_supported) {
+      session$sendCustomMessage(
+        "side-thinking-state",
+        list(enabled = shiny::isolate(thinking_enabled()), animate = FALSE)
+      )
+    } else {
+      session$sendCustomMessage(
+        "side-thinking-state",
+        list(hidden = TRUE)
+      )
+    }
   }, once = TRUE)
 
   observeEvent(input$thinking_toggle, {
+    if (!thinking_supported) {
+      return()
+    }
     new_state <- !thinking_enabled()
     side:::toggle_thinking(client, new_state)
     thinking_enabled(new_state)

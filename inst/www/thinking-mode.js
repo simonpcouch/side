@@ -4,11 +4,13 @@
   let fadeTimer = null
   let textareaEl = null
   let lastIndicatorState = null
+  let thinkingHidden = false
   const thinkingStreams = new Map()
   let assistantCounter = 0
 
   function sendToggle(source) {
     if (!window.Shiny) return
+    if (thinkingHidden) return
     window.Shiny.setInputValue(
       'thinking_toggle',
       { source, ts: Date.now() },
@@ -18,6 +20,7 @@
 
   function onKeyDown(event) {
     if (event.defaultPrevented) return
+    if (thinkingHidden) return
 
     const isCtrlT =
       (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 't'
@@ -59,6 +62,16 @@
 
   function applyIndicatorState(state) {
     if (!state) return
+
+    if (state.hidden) {
+      thinkingHidden = true
+      if (indicatorEl) {
+        indicatorEl.classList.remove('side-thinking-visible')
+      }
+      return
+    }
+
+    thinkingHidden = false
     const { enabled, animate = true } = state
     const chatInput = document.querySelector('shiny-chat-input')
     if (!chatInput) return
@@ -107,7 +120,7 @@
 
     textareaEl = textarea
     textareaEl.addEventListener('keydown', onKeyDown)
-    if (lastIndicatorState) {
+    if (lastIndicatorState && !thinkingHidden) {
       ensureIndicator(chatInput)
       applyIndicatorState(lastIndicatorState)
     }
@@ -242,10 +255,6 @@
   function init() {
     attachListeners()
     markAssistantMessages()
-    const chatInput = document.querySelector('shiny-chat-input')
-    if (chatInput) {
-      ensureIndicator(chatInput)
-    }
   }
 
   const observer = new MutationObserver(() => {
