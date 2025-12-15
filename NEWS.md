@@ -1,5 +1,7 @@
 # side (development version)
 
+* Added thinking mode support for Anthropic, OpenAI, and Google Gemini. Toggle with Ctrl+T in the chat interface. When enabled, the model's reasoning process is streaming into a collapsible block above each response. For Anthropic and Google Gemini, the number of reasoning tokens is set to 1024 when reasoning is on. For OpenAI, the reasoning effort parameter is set to "medium."
+
 # side 0.0.2
 
 Aligned Skills with Claude's storage format. Skills now use a directory-based 

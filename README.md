@@ -9,6 +9,7 @@
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/side)](https://CRAN.R-project.org/package=side)
+[![R-CMD-check](https://github.com/simonpcouch/side/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/simonpcouch/side/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `side::kick()` is a coding agent for data science in RStudio,
@@ -64,6 +65,8 @@ Dailies](https://dailies.rstudio.com/). Install RStudio, then search for
   the agent.
 - Read **skills**, markdown files that describe how to carry out a given
   task in the way you need it to.
+- **Think out loud** with native reasoning support for Anthropic,
+  OpenAI, and Google Gemini (Ctrl+T to toggle).
 
 ------------------------------------------------------------------------
 

@@ -129,15 +129,10 @@ ui <- function(req) {
 }
 
 server <- function(input, output, session) {
+  side:::install_thinking_stream_hook()
   session$userData$approval_resolvers <- fastmap::fastmap()
 
-  thinking_enabled <- reactiveVal(FALSE)
-  options(side.thinking_enabled = FALSE)
-  if (isTRUE(attr(client, "side_thinking_enabled"))) {
-    thinking_enabled(TRUE)
-    options(side.thinking_enabled = TRUE)
-  }
-  session$userData$thinking_enabled <- thinking_enabled
+  thinking_enabled <- reactiveVal(side:::thinking_is_enabled(client))
 
   session$onFlushed(function() {
     session$sendCustomMessage(
@@ -148,9 +143,8 @@ server <- function(input, output, session) {
 
   observeEvent(input$thinking_toggle, {
     new_state <- !thinking_enabled()
+    side:::toggle_thinking(client, new_state)
     thinking_enabled(new_state)
-    options(side.thinking_enabled = new_state)
-    attr(client, "side_thinking_enabled") <- new_state
     session$sendCustomMessage(
       "side-thinking-state",
       list(enabled = new_state, animate = TRUE)
@@ -176,8 +170,7 @@ server <- function(input, output, session) {
   chat_server <- side:::chat_mod_server_interruptible(
     "chat",
     client,
-    interrupt_flag,
-    thinking_enabled = thinking_enabled
+    interrupt_flag
   )
   
   observeEvent(input$interrupt_requested, {
@@ -268,9 +261,8 @@ server <- function(input, output, session) {
     current_file(input$load_chat_click)
 
     chat_server$load_chat()
-    restored_state <- isTRUE(attr(client, "side_thinking_enabled"))
+    restored_state <- side:::thinking_is_enabled(client)
     thinking_enabled(restored_state)
-    options(side.thinking_enabled = restored_state)
     session$sendCustomMessage(
       "side-thinking-state",
       list(enabled = restored_state, animate = FALSE)

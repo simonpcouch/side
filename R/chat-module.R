@@ -1,18 +1,14 @@
 chat_mod_server_interruptible <- function(
   id,
   client,
-  interrupt_flag,
-  thinking_enabled = NULL
+  interrupt_flag
 ) {
-  thinking_enabled <- thinking_enabled %||% function() FALSE
-
   append_stream_task <- shiny::ExtendedTask$new(
     function(
       client,
       ui_id,
       user_input,
       interrupt_flag,
-      thinking_active = FALSE,
       assistant_index = NULL
     ) {
       stream <- client$stream_async(
@@ -28,7 +24,6 @@ chat_mod_server_interruptible <- function(
           interrupt_flag,
           client,
           user_input,
-          thinking_active = thinking_active,
           assistant_index = assistant_index
         )
       })
@@ -36,12 +31,7 @@ chat_mod_server_interruptible <- function(
   )
 
   shiny::moduleServer(id, function(input, output, session) {
-    shinychat::chat_restore(
-      "chat",
-      client,
-      session = session
-    )
-
+    restore_chat_filtered(client, session)
     thinking_replay_history(client, session)
 
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
@@ -53,20 +43,13 @@ chat_mod_server_interruptible <- function(
       }
 
       last_input(input$chat_user_input)
-
-      user_value <- input$chat_user_input
-      use_thinking <- shiny::isolate(isTRUE(thinking_enabled()))
-      if (use_thinking && nzchar(user_value)) {
-        user_value <- thinking_prepend_instruction(user_value)
-      }
       assistant_index <- thinking_next_assistant_index(client)
 
       append_stream_task$invoke(
         client,
         "chat",
-        user_value,
+        input$chat_user_input,
         interrupt_flag,
-        use_thinking,
         assistant_index
       )
     })
@@ -147,7 +130,6 @@ chat_mod_server_interruptible <- function(
         turns <- c(turns, as_ellmer_turns(messages))
         client$set_turns(turns)
       }
-      thinking_set_log(client, list())
 
       last_turn(NULL)
       last_input(NULL)
@@ -161,12 +143,17 @@ chat_mod_server_interruptible <- function(
 
       msgs <- shinychat::contents_shinychat(client)
       lapply(msgs, function(msg_turn) {
-        is_list <- is.list(msg_turn$content) &&
-          !inherits(msg_turn$content, c("shiny.tag", "shiny.taglist"))
+        content <- filter_thinking_content(msg_turn$content)
+        if (is.null(content) || length(content) == 0) {
+          return()
+        }
+
+        is_list <- is.list(content) &&
+          !inherits(content, c("shiny.tag", "shiny.taglist"))
 
         if (is_list) {
           stream <- coro::generator(function() {
-            for (x in msg_turn$content) {
+            for (x in content) {
               coro::yield(x)
             }
           })
@@ -179,7 +166,7 @@ chat_mod_server_interruptible <- function(
         } else {
           shinychat::chat_append(
             "chat",
-            msg_turn$content,
+            content,
             role = msg_turn$role,
             session = session
           )
@@ -210,7 +197,6 @@ chat_append_interruptible <- coro::async(function(
   role = "assistant",
   icon = NULL,
   session = shiny::getDefaultReactiveDomain(),
-  thinking_active = FALSE,
   assistant_index = NULL
 ) {
   chat_append_ <- function(content, chunk = TRUE, ...) {
@@ -231,7 +217,8 @@ chat_append_interruptible <- coro::async(function(
   if (is.null(assistant_index)) {
     assistant_index <- thinking_next_assistant_index(client)
   }
-  thinking_ctx <- thinking_context_new(thinking_active, session, assistant_index, live = TRUE)
+  thinking_ctx <- thinking_context_new(session, assistant_index)
+  set_thinking_stream_callback(thinking_ctx)
 
   interrupted <- FALSE
   for (msg in stream) {
@@ -253,23 +240,8 @@ chat_append_interruptible <- coro::async(function(
       }
     }
 
-    if (thinking_ctx$enabled && S7::S7_inherits(msg, ellmer::ContentText)) {
-      chunks <- thinking_context_process_text(thinking_ctx, msg@text)
-      if (length(chunks) > 0) {
-        for (chunk in chunks) {
-          if (!nzchar(chunk)) {
-            next
-          }
-          chunk_content <- ellmer::ContentText(chunk)
-          res$add(chunk_content)
-          rendered <- shinychat::contents_shinychat(chunk_content)
-          chat_append_(rendered)
-        }
-      }
-      next
-    }
-
     if (S7::S7_inherits(msg, ellmer::ContentThinking)) {
+      thinking_context_emit(thinking_ctx, msg@thinking, done = FALSE)
       next
     }
 
@@ -282,6 +254,7 @@ chat_append_interruptible <- coro::async(function(
     chat_append_(msg)
   }
 
+  clear_thinking_stream_callback()
   thinking_context_finalize(thinking_ctx)
 
   if (interrupted) {
@@ -315,11 +288,6 @@ chat_append_interruptible <- coro::async(function(
 
   chat_append_("", chunk = "end")
 
-  if (thinking_ctx$enabled && nzchar(thinking_ctx$buffer)) {
-    thinking_record_log(client, thinking_ctx$assistant_index, thinking_ctx$buffer)
-  }
-  thinking_prune_client(client)
-
   res <- res$as_list()
   if (all(vapply(res, is.character, logical(1)))) {
     paste(unlist(res), collapse = "")
@@ -345,4 +313,70 @@ as_ellmer_turns <- function(messages) {
 
     ellmer::Turn(role = role, contents = contents)
   })
+}
+
+restore_chat_filtered <- function(client, session) {
+  msgs <- shinychat::contents_shinychat(client)
+  for (msg_turn in msgs) {
+    content <- filter_thinking_content(msg_turn$content)
+    if (is.null(content) || length(content) == 0) {
+      next
+    }
+
+    is_list <- is.list(content) &&
+      !inherits(content, c("shiny.tag", "shiny.taglist"))
+
+    if (is_list) {
+      stream <- coro::generator(function() {
+        for (x in content) {
+          coro::yield(x)
+        }
+      })
+      shinychat::chat_append(
+        "chat",
+        stream(),
+        msg_turn$role,
+        session = session
+      )
+    } else {
+      shinychat::chat_append(
+        "chat",
+        content,
+        role = msg_turn$role,
+        session = session
+      )
+    }
+  }
+}
+
+filter_thinking_content <- function(content) {
+  if (is.null(content)) {
+    return(NULL)
+  }
+
+  strip_thinking <- function(x) {
+    if (is.character(x) && length(x) == 1) {
+      x <- sub(
+        "<details><summary>Thinking</summary>[\\s\\S]*?</details>\\s*",
+        "",
+        x,
+        perl = TRUE
+      )
+      if (!nzchar(trimws(x))) {
+        return(NULL)
+      }
+    }
+    x
+  }
+
+  if (is.list(content) && !inherits(content, c("shiny.tag", "shiny.taglist"))) {
+    content <- lapply(content, strip_thinking)
+    content <- Filter(function(x) !is.null(x), content)
+    if (length(content) == 0) {
+      return(NULL)
+    }
+    return(content)
+  }
+
+  strip_thinking(content)
 }

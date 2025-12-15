@@ -1,147 +1,141 @@
-thinking_instruction_line <- function() {
-  "<noteFromSidekickApp>If you want to pause and consider your next steps, you can wrap a *very* short aside in `<think>...</think>` right at the start of your message. Close the tag before you continue replying. Avoid beginning your aside with 'The user...', and **crucially** avoid using the <think> tag for any use other than opening or closing that tag.</noteFromSidekickApp>"
-}
-
-thinking_prepend_instruction <- function(text) {
-  instruction <- thinking_instruction_line()
-
-  if (!nzchar(text)) {
-    return(instruction)
+install_thinking_stream_hook <- function() {
+  if (isTRUE(getOption("side.thinking_hook_installed"))) {
+    return(invisible(NULL))
   }
 
-  paste(instruction, "", text, sep = "\n")
-}
+  stream_text <- ellmer:::stream_text
 
-thinking_strip_instruction_text <- function(text) {
-  instruction <- thinking_instruction_line()
-
-  if (!isTRUE(startsWith(text, instruction))) {
-    return(text)
-  }
-
-  remainder <- substr(text, nchar(instruction) + 1, nchar(text))
-  remainder <- sub("^[\\r\\n]+", "", remainder)
-  remainder
-}
-
-thinking_strip_instruction_turn <- function(turn) {
-  if (is.null(turn) || turn@role != "user" || length(turn@contents) == 0) {
-    return(turn)
-  }
-
-  for (i in seq_along(turn@contents)) {
-    content <- turn@contents[[i]]
-    if (S7::S7_inherits(content, ellmer::ContentText)) {
-      new_text <- thinking_strip_instruction_text(content@text)
-      if (!identical(new_text, content@text)) {
-        turn@contents[[i]] <- ellmer::ContentText(new_text)
+  patched_anthropic <- function(provider, event) {
+    if (event$type == "content_block_delta") {
+      if (identical(event$delta$type, "thinking_delta")) {
+        callback <- getOption("side.thinking_stream_callback")
+        if (is.function(callback)) {
+          callback(event$delta$thinking)
+        }
+        return(NULL)
+      } else if (identical(event$delta$type, "text_delta")) {
+        return(event$delta$text)
       }
-      break
     }
+    NULL
   }
 
-  turn
-}
-
-thinking_strip_native_content <- function(turn) {
-  if (is.null(turn) || turn@role != "assistant") {
-    return(turn)
+  patched_openai <- function(provider, event) {
+    if (event$type == "response.output_text.delta") {
+      return(event$delta)
+    } else if (event$type == "response.reasoning_summary_text.delta") {
+      callback <- getOption("side.thinking_stream_callback")
+      if (is.function(callback)) {
+        callback(event$delta)
+      }
+      return(NULL)
+    } else if (event$type == "response.reasoning_summary_text.done") {
+      return(NULL)
+    }
+    NULL
   }
 
-  if (
-    !any(vapply(
-      turn@contents,
-      S7::S7_inherits,
-      logical(1),
-      ellmer::ContentThinking
-    ))
-  ) {
-    return(turn)
-  }
-
-  turn@contents <- Filter(
-    function(content) !S7::S7_inherits(content, ellmer::ContentThinking),
-    turn@contents
-  )
-  turn
-}
-
-thinking_prune_client <- function(client) {
-  turns <- client$get_turns(include_system_prompt = TRUE)
-  if (length(turns) == 0) {
-    return(invisible(client))
-  }
-
-  changed <- FALSE
-  for (i in seq_along(turns)) {
-    turn <- turns[[i]]
-    if (turn@role == "user") {
-      new_turn <- thinking_strip_instruction_turn(turn)
-    } else if (turn@role == "assistant") {
-      new_turn <- thinking_strip_native_content(turn)
-    } else {
-      new_turn <- turn
+  patched_gemini <- function(provider, event) {
+    parts <- event$candidates[[1]]$content$parts
+    if (is.null(parts) || length(parts) == 0) {
+      return(NULL)
     }
 
-    if (!identical(new_turn, turn)) {
-      turns[[i]] <- new_turn
-      changed <- TRUE
-    }
-  }
+    callback <- getOption("side.thinking_stream_callback")
+    text_parts <- character()
 
-  if (changed) {
-    client$set_turns(turns)
-  }
-
-  invisible(client)
-}
-
-ensure_thinking_tool_patch <- function() {
-  if (isTRUE(getOption("side.ellmer_tool_patch", FALSE))) {
-    return(invisible(NULL))
-  }
-
-  if (!requireNamespace("ellmer", quietly = TRUE)) {
-    return(invisible(NULL))
-  }
-
-  ns <- asNamespace("ellmer")
-  original <- get("tool_results_as_turn", envir = ns)
-
-  patched <- function(results) {
-    turn <- original(results)
-    if (!isTRUE(getOption("side.thinking_enabled", FALSE))) {
-      return(turn)
-    }
-    if (is.null(turn)) {
-      return(turn)
+    for (part in parts) {
+      if (isTRUE(part$thought) && !is.null(part$text)) {
+        if (is.function(callback)) {
+          callback(part$text)
+        }
+      } else if (!is.null(part$text)) {
+        text_parts <- c(text_parts, part$text)
+      }
     }
 
-    instruction <- thinking_instruction_line()
-    text_content <- ellmer::ContentText(instruction)
-    turn@contents <- c(list(text_content), turn@contents)
-    turn
+    if (length(text_parts) > 0) {
+      return(paste(text_parts, collapse = ""))
+    }
+    NULL
   }
 
-  assignInNamespace("tool_results_as_turn", patched, ns = "ellmer")
-  options(side.ellmer_tool_patch = TRUE)
+  patched_gemini_value_turn <- function(provider, result, has_type = FALSE) {
+    message <- result$candidates[[1]]$content
+
+    contents <- lapply(message$parts, function(content) {
+      if (isTRUE(content$thought) && !is.null(content$text)) {
+        ellmer::ContentThinking(thinking = content$text)
+      } else if (!is.null(content$text)) {
+        if (has_type) {
+          ellmer::ContentJson(string = content$text)
+        } else {
+          ellmer::ContentText(content$text)
+        }
+      } else if (!is.null(content$functionCall)) {
+        extra <- if (!is.null(content$thoughtSignature)) {
+          list(thoughtSignature = content$thoughtSignature)
+        } else {
+          list()
+        }
+        ellmer::ContentToolRequest(
+          content$functionCall$name,
+          content$functionCall$name,
+          content$functionCall$args,
+          extra = extra
+        )
+      } else if (!is.null(content$inlineData)) {
+        ellmer::ContentImageInline(
+          type = content$inlineData$mimeType,
+          data = content$inlineData$data
+        )
+      } else {
+        NULL
+      }
+    })
+    contents <- Filter(Negate(is.null), contents)
+    tokens <- ellmer:::value_tokens(provider, result)
+    cost <- ellmer:::get_token_cost(provider, tokens)
+    ellmer::AssistantTurn(
+      contents,
+      json = result,
+      tokens = unlist(tokens),
+      cost = cost
+    )
+  }
+
+  ProviderAnthropic <- ellmer:::ProviderAnthropic
+  ProviderOpenAI <- ellmer:::ProviderOpenAI
+  ProviderGoogleGemini <- ellmer:::ProviderGoogleGemini
+  value_turn <- ellmer:::value_turn
+
+  S7::method(stream_text, ProviderAnthropic) <- patched_anthropic
+  S7::method(stream_text, ProviderOpenAI) <- patched_openai
+  S7::method(stream_text, ProviderGoogleGemini) <- patched_gemini
+  S7::method(value_turn, ProviderGoogleGemini) <- patched_gemini_value_turn
+
+  options(side.thinking_hook_installed = TRUE)
+
   invisible(NULL)
 }
 
-disable_provider_reasoning <- function(client) {
-  provider <- client$get_provider()
-  if (inherits(provider, "ProviderAnthropic")) {
-    provider@params$reasoning_tokens <- NULL
-    provider@params$reasoning_effort <- NULL
-  } else if (inherits(provider, "ProviderOpenAI")) {
-    provider@params$reasoning_effort <- NULL
-  } else if (inherits(provider, "ProviderGoogleGemini")) {
-    provider@params$reasoning_tokens <- NULL
+set_thinking_stream_callback <- function(context) {
+  if (is.null(context)) {
+    options(side.thinking_stream_callback = NULL)
+    return(invisible(NULL))
   }
 
-  private <- client$.__enclos_env__$private
-  private$provider <- provider
-  invisible(client)
+  callback <- function(text) {
+    thinking_context_emit(context, text, done = FALSE)
+  }
+
+  options(side.thinking_stream_callback = callback)
+  invisible(NULL)
+}
+
+clear_thinking_stream_callback <- function() {
+  options(side.thinking_stream_callback = NULL)
+  invisible(NULL)
 }
 
 thinking_next_assistant_index <- function(client) {
@@ -154,25 +148,16 @@ thinking_next_assistant_index <- function(client) {
   assistant_count + 1
 }
 
-thinking_context_new <- function(
-  enabled,
-  session,
-  assistant_index,
-  live = TRUE
-) {
+thinking_context_new <- function(session, assistant_index) {
   rlang::env(
-    enabled = isTRUE(enabled),
     session = session,
     id = NULL,
-    buffer = "",
-    in_tag = FALSE,
-    assistant_index = assistant_index,
-    live = live
+    assistant_index = assistant_index
   )
 }
 
 thinking_context_emit <- function(context, text, done = FALSE) {
-  if (!context$enabled || is.null(context$session)) {
+  if (is.null(context$session)) {
     return(invisible(NULL))
   }
 
@@ -185,8 +170,7 @@ thinking_context_emit <- function(context, text, done = FALSE) {
 
     timestamp_ms <- as.integer(as.numeric(Sys.time()) * 1000)
     context$id <- paste0(
-      if (context$live) "think-live" else "think-history",
-      "-",
+      "think-live-",
       timestamp_ms,
       "-",
       sample.int(1e6, 1)
@@ -199,7 +183,7 @@ thinking_context_emit <- function(context, text, done = FALSE) {
       id = context$id,
       text = text,
       done = done,
-      mode = if (context$live) "live" else "history",
+      mode = "live",
       order = context$assistant_index
     )
   )
@@ -207,78 +191,7 @@ thinking_context_emit <- function(context, text, done = FALSE) {
   invisible(NULL)
 }
 
-thinking_context_process_text <- function(context, text) {
-  if (!context$enabled) {
-    return(text)
-  }
-
-  if (length(text) == 0 || all(is.na(text))) {
-    return(character())
-  }
-
-  text <- paste0(text, collapse = "")
-
-  if (!nzchar(text)) {
-    return(character())
-  }
-
-  visible <- character()
-  remainder <- text
-
-  while (nzchar(remainder)) {
-    if (!context$in_tag) {
-      open <- regexpr("<think>", remainder, fixed = TRUE)
-      if (open == -1) {
-        visible <- c(visible, remainder)
-        remainder <- ""
-      } else {
-        before <- substr(remainder, 1, open - 1)
-        if (nzchar(before)) {
-          visible <- c(visible, before)
-        }
-        remainder <- substr(
-          remainder,
-          open + nchar("<think>"),
-          nchar(remainder)
-        )
-        context$in_tag <- TRUE
-        thinking_context_emit(context, "", done = FALSE)
-      }
-    } else {
-      close <- regexpr("</think>", remainder, fixed = TRUE)
-      if (close == -1) {
-        context$buffer <- paste0(context$buffer, remainder)
-        thinking_context_emit(context, remainder, done = FALSE)
-        remainder <- ""
-      } else {
-        chunk <- substr(remainder, 1, close - 1)
-        if (nzchar(chunk)) {
-          context$buffer <- paste0(context$buffer, chunk)
-          thinking_context_emit(context, chunk, done = FALSE)
-        }
-        remainder <- substr(
-          remainder,
-          close + nchar("</think>"),
-          nchar(remainder)
-        )
-        context$in_tag <- FALSE
-        thinking_context_emit(context, "", done = TRUE)
-      }
-    }
-  }
-
-  visible
-}
-
 thinking_context_finalize <- function(context) {
-  if (!context$enabled) {
-    return(invisible(NULL))
-  }
-
-  if (isTRUE(context$in_tag)) {
-    context$in_tag <- FALSE
-  }
-
   if (!is.null(context$session) && !is.null(context$id)) {
     thinking_context_emit(context, "", done = TRUE)
   }
@@ -286,49 +199,193 @@ thinking_context_finalize <- function(context) {
   invisible(NULL)
 }
 
-thinking_get_log <- function(client) {
-  attr(client, "side_thinking_log") %||% list()
-}
-
-thinking_set_log <- function(client, log) {
-  attr(client, "side_thinking_log") <- log
-  client
-}
-
-thinking_record_log <- function(client, assistant_index, text) {
-  if (!nzchar(text)) {
-    return(invisible(client))
-  }
-
-  log <- thinking_get_log(client)
-  log[[as.character(assistant_index)]] <- text
-  thinking_set_log(client, log)
-  invisible(client)
-}
-
 thinking_replay_history <- function(client, session) {
   if (is.null(session)) {
     return(invisible(NULL))
   }
 
-  log <- thinking_get_log(client)
-  if (length(log) == 0) {
-    return(invisible(NULL))
-  }
+  turns <- client$get_turns()
+  assistant_index <- 0
 
-  for (name in names(log)) {
-    text <- log[[name]]
-    if (!nzchar(text)) {
+  for (turn in turns) {
+    if (turn@role != "assistant") {
       next
     }
-    context <- thinking_context_new(
-      TRUE,
-      session,
-      as.integer(name),
-      live = FALSE
-    )
-    thinking_context_emit(context, text, done = TRUE)
+    assistant_index <- assistant_index + 1
+
+    for (content in turn@contents) {
+      if (!S7::S7_inherits(content, ellmer::ContentThinking)) {
+        next
+      }
+
+      thinking_text <- content@thinking
+      if (!nzchar(thinking_text)) {
+        next
+      }
+
+      timestamp_ms <- as.integer(as.numeric(Sys.time()) * 1000)
+      id <- paste0(
+        "think-history-",
+        timestamp_ms,
+        "-",
+        sample.int(1e6, 1)
+      )
+
+      session$sendCustomMessage(
+        "side-thinking-stream",
+        list(
+          id = id,
+          text = thinking_text,
+          done = TRUE,
+          mode = "history",
+          order = assistant_index
+        )
+      )
+    }
   }
 
   invisible(NULL)
+}
+
+toggle_thinking <- function(client, enable = TRUE) {
+  provider <- client$get_provider()
+  cls <- sub("^.*::", "", class(provider)[1])
+  UseMethod("toggle_thinking", structure(list(), class = cls))
+}
+
+#' @export
+toggle_thinking.ProviderAnthropic <- function(client, enable = TRUE) {
+  provider <- client$get_provider()
+
+  if (enable && !supports_thinking(provider)) {
+    cli::cli_warn("This model may not support thinking tokens.")
+  }
+
+  if (enable) {
+    provider@params$reasoning_tokens <- 1024
+  } else {
+    provider@params$reasoning_tokens <- NULL
+  }
+
+  set_provider(client, provider)
+  invisible(client)
+}
+
+#' @export
+toggle_thinking.ProviderOpenAI <- function(client, enable = TRUE) {
+  provider <- client$get_provider()
+
+  if (enable && !supports_thinking(provider)) {
+    cli::cli_warn(
+      "This model does not support thinking tokens. Use an o-series or gpt-5+ model."
+    )
+    return(invisible(client))
+  }
+
+  if (enable) {
+    provider@params$reasoning_effort <- "medium"
+  } else {
+    model <- provider@model
+    if (
+      grepl("^gpt-5\\.[2-9]|^gpt-5\\.1[0-9]|^gpt-[6-9]|^gpt-[0-9]{2,}", model)
+    ) {
+      provider@params$reasoning_effort <- "none"
+    } else if (grepl("^gpt-5", model)) {
+      provider@params$reasoning_effort <- "low"
+    } else {
+      provider@params$reasoning_effort <- NULL
+    }
+  }
+
+  set_provider(client, provider)
+  invisible(client)
+}
+
+#' @export
+toggle_thinking.ProviderGoogleGemini <- function(client, enable = TRUE) {
+  provider <- client$get_provider()
+
+  if (enable && !supports_thinking(provider)) {
+    cli::cli_warn(
+      "This model may not support thinking tokens. Use gemini-2.5+ or later."
+    )
+  }
+
+  if (enable) {
+    provider@params$reasoning_tokens <- 1024
+  } else {
+    provider@params$reasoning_tokens <- NULL
+  }
+
+  set_provider(client, provider)
+  invisible(client)
+}
+
+#' @export
+toggle_thinking.default <- function(client, enable = TRUE) {
+  provider <- client$get_provider()
+
+  if (enable && !supports_thinking(provider)) {
+    cli::cli_warn("Thinking is not supported for this provider.")
+    return(invisible(client))
+  }
+
+  invisible(client)
+}
+
+supports_thinking <- function(provider) {
+  cls <- sub("^.*::", "", class(provider)[1])
+  UseMethod("supports_thinking", structure(list(), class = cls))
+}
+
+#' @export
+supports_thinking.ProviderAnthropic <- function(provider) {
+  TRUE
+}
+
+#' @export
+supports_thinking.ProviderOpenAI <- function(provider) {
+  model <- provider@model
+  is_o_series <- grepl("^o[0-9]", model)
+  is_gpt5_plus <- grepl("^gpt-([5-9]|[0-9]{2,})", model)
+  is_o_series || is_gpt5_plus
+}
+
+#' @export
+supports_thinking.ProviderGoogleGemini <- function(provider) {
+  model <- provider@model
+  if (grepl("^gemini-([3-9]|[0-9]{2,})", model)) {
+    return(TRUE)
+  }
+  if (grepl("^gemini-2\\.([5-9]|[0-9]{2,})", model)) {
+    return(TRUE)
+  }
+  FALSE
+}
+
+#' @export
+supports_thinking.default <- function(provider) {
+  FALSE
+}
+
+set_provider <- function(client, provider) {
+  private <- client$.__enclos_env__$private
+  private$provider <- provider
+  invisible(client)
+}
+
+thinking_is_enabled <- function(client) {
+  provider <- client$get_provider()
+  cls <- sub("^.*::", "", class(provider)[1])
+
+  if (cls == "ProviderAnthropic") {
+    return(!is.null(provider@params$reasoning_tokens))
+  } else if (cls == "ProviderOpenAI") {
+    effort <- provider@params$reasoning_effort
+    return(!is.null(effort) && effort != "none" && effort != "low")
+  } else if (cls == "ProviderGoogleGemini") {
+    return(!is.null(provider@params$reasoning_tokens))
+  }
+
+  FALSE
 }

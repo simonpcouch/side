@@ -1,15 +1,10 @@
 setup_client <- function(client = NULL, call = rlang::caller_env()) {
   if (!is.null(client)) {
     if (inherits(client, "Chat")) {
-      ensure_thinking_tool_patch()
-      disable_provider_reasoning(client)
       return(client)
     } else if (is.character(client) && length(client) == 1) {
       if (length(gregexpr("/", client, fixed = TRUE)[[1]]) == 1) {
-        result <- ellmer::chat(client)
-        ensure_thinking_tool_patch()
-        disable_provider_reasoning(result)
-        return(result)
+        return(ellmer::chat(client))
       }
     }
 
@@ -105,10 +100,6 @@ prompt_provider_selection <- function() {
 
   selected_info <- available_providers[[selection]]
   client <- selected_info$create_client()
-
-  ensure_thinking_tool_patch()
-  disable_provider_reasoning(client)
-  thinking_set_log(client, list())
 
   options(side.client = client)
 
