@@ -183,6 +183,9 @@ load_chat <- function(chat_file, fresh_client) {
   tryCatch(
     {
       fresh_client$set_turns(old_client$get_turns())
+      thinking_set_log(fresh_client, thinking_get_log(old_client))
+      attr(fresh_client, "side_thinking_enabled") <-
+        attr(old_client, "side_thinking_enabled")
     },
     error = function(e) {
       cli::cli_inform(c(

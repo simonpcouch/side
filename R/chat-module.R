@@ -1,6 +1,20 @@
-chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
+chat_mod_server_interruptible <- function(
+  id,
+  client,
+  interrupt_flag,
+  thinking_enabled = NULL
+) {
+  thinking_enabled <- thinking_enabled %||% function() FALSE
+
   append_stream_task <- shiny::ExtendedTask$new(
-    function(client, ui_id, user_input, interrupt_flag) {
+    function(
+      client,
+      ui_id,
+      user_input,
+      interrupt_flag,
+      thinking_active = FALSE,
+      assistant_index = NULL
+    ) {
       stream <- client$stream_async(
         user_input,
         stream = "content"
@@ -13,7 +27,9 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
           stream,
           interrupt_flag,
           client,
-          user_input
+          user_input,
+          thinking_active = thinking_active,
+          assistant_index = assistant_index
         )
       })
     }
@@ -26,6 +42,8 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
       session = session
     )
 
+    thinking_replay_history(client, session)
+
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
 
@@ -36,11 +54,20 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
 
       last_input(input$chat_user_input)
 
+      user_value <- input$chat_user_input
+      use_thinking <- shiny::isolate(isTRUE(thinking_enabled()))
+      if (use_thinking && nzchar(user_value)) {
+        user_value <- thinking_prepend_instruction(user_value)
+      }
+      assistant_index <- thinking_next_assistant_index(client)
+
       append_stream_task$invoke(
         client,
         "chat",
-        input$chat_user_input,
-        interrupt_flag
+        user_value,
+        interrupt_flag,
+        use_thinking,
+        assistant_index
       )
     })
 
@@ -120,6 +147,7 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
         turns <- c(turns, as_ellmer_turns(messages))
         client$set_turns(turns)
       }
+      thinking_set_log(client, list())
 
       last_turn(NULL)
       last_input(NULL)
@@ -157,6 +185,8 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
           )
         }
       })
+
+      thinking_replay_history(client, session)
     }
 
     list(
@@ -179,7 +209,9 @@ chat_append_interruptible <- coro::async(function(
   user_input = NULL,
   role = "assistant",
   icon = NULL,
-  session = shiny::getDefaultReactiveDomain()
+  session = shiny::getDefaultReactiveDomain(),
+  thinking_active = FALSE,
+  assistant_index = NULL
 ) {
   chat_append_ <- function(content, chunk = TRUE, ...) {
     shinychat::chat_append_message(
@@ -196,6 +228,11 @@ chat_append_interruptible <- coro::async(function(
 
   res <- fastmap::fastqueue(200)
 
+  if (is.null(assistant_index)) {
+    assistant_index <- thinking_next_assistant_index(client)
+  }
+  thinking_ctx <- thinking_context_new(thinking_active, session, assistant_index, live = TRUE)
+
   interrupted <- FALSE
   for (msg in stream) {
     if (promises::is.promising(msg)) {
@@ -210,13 +247,33 @@ chat_append_interruptible <- coro::async(function(
       break
     }
 
-    res$add(msg)
-
     if (S7::S7_inherits(msg, ellmer::ContentToolResult)) {
       if (!is.null(msg@request)) {
         session$sendCustomMessage("shiny-tool-request-hide", msg@request@id)
       }
     }
+
+    if (thinking_ctx$enabled && S7::S7_inherits(msg, ellmer::ContentText)) {
+      chunks <- thinking_context_process_text(thinking_ctx, msg@text)
+      if (length(chunks) > 0) {
+        for (chunk in chunks) {
+          if (!nzchar(chunk)) {
+            next
+          }
+          chunk_content <- ellmer::ContentText(chunk)
+          res$add(chunk_content)
+          rendered <- shinychat::contents_shinychat(chunk_content)
+          chat_append_(rendered)
+        }
+      }
+      next
+    }
+
+    if (S7::S7_inherits(msg, ellmer::ContentThinking)) {
+      next
+    }
+
+    res$add(msg)
 
     if (S7::S7_inherits(msg, ellmer::Content)) {
       msg <- shinychat::contents_shinychat(msg)
@@ -224,6 +281,8 @@ chat_append_interruptible <- coro::async(function(
 
     chat_append_(msg)
   }
+
+  thinking_context_finalize(thinking_ctx)
 
   if (interrupted) {
     streamed_content <- res$as_list()
@@ -255,6 +314,11 @@ chat_append_interruptible <- coro::async(function(
   }
 
   chat_append_("", chunk = "end")
+
+  if (thinking_ctx$enabled && nzchar(thinking_ctx$buffer)) {
+    thinking_record_log(client, thinking_ctx$assistant_index, thinking_ctx$buffer)
+  }
+  thinking_prune_client(client)
 
   res <- res$as_list()
   if (all(vapply(res, is.character, logical(1)))) {

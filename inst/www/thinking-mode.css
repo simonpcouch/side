@@ -1,0 +1,113 @@
+.side-thinking-indicator {
+  position: absolute;
+  top: calc(100% - 1px);
+  right: -14px;
+  left: auto;
+  width: min(170px, calc(100% - 48px));
+  max-width: 240px;
+  font-size: 0.85rem;
+  color: var(--bs-gray-600, #6c757d);
+  font-style: italic;
+  pointer-events: none;
+  opacity: 0;
+  transition: color 0.5s ease-in-out, opacity 0.25s ease;
+  text-align: left;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding-right: 0;
+  margin: 0;
+}
+
+.side-thinking-indicator .side-thinking-text {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.side-thinking-indicator.side-thinking-visible {
+  opacity: 1;
+}
+
+.side-thinking-indicator--on {
+  color: #198754;
+}
+
+.side-thinking-indicator--muted {
+  color: var(--bs-gray-600, #6c757d);
+}
+
+.side-thinking-collapse {
+  margin-bottom: 0.75rem;
+  border-left: 2px solid var(--bs-border-color, #dee2e6);
+  padding-left: 0.75rem;
+  font-size: 0.9em;
+  color: var(--bs-gray-700, #495057);
+  font-style: italic;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  align-self: flex-start;
+  box-sizing: border-box;
+}
+
+.side-thinking-collapse button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: block;
+  margin: 0;
+  width: 100%;
+  justify-self: stretch;
+}
+
+.side-thinking-collapse .side-thinking-caret {
+  display: none;
+}
+
+.side-thinking-collapse button:focus-visible {
+  outline: 2px solid var(--bs-primary, #0d6efd);
+  outline-offset: 2px;
+}
+
+.side-thinking-collapse .side-thinking-preview {
+  display: block;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  font-style: italic;
+  color: var(--bs-gray-600, #6c757d);
+  white-space: nowrap;
+  text-align: left;
+  max-height: 1.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+  transition: color 0.2s ease;
+}
+
+.side-thinking-collapse .side-thinking-preview:hover {
+  color: var(--bs-gray-900, #212529);
+  cursor: pointer;
+}
+
+.side-thinking-collapse[data-open="true"] .side-thinking-preview {
+  max-height: none;
+  white-space: pre-wrap;
+}
+
+.side-thinking-collapse .side-thinking-shimmer {
+  background: linear-gradient(110deg, rgba(0,0,0,0) 25%, rgba(255,255,255,0.4) 50%, rgba(0,0,0,0) 75%);
+  background-size: 200% 100%;
+  animation: side-thinking-shimmer 1.5s infinite;
+}
+
+@keyframes side-thinking-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
