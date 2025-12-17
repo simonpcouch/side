@@ -114,12 +114,7 @@
 
     if (textareaEl === textarea) return
 
-    if (textareaEl) {
-      textareaEl.removeEventListener('keydown', onKeyDown)
-    }
-
     textareaEl = textarea
-    textareaEl.addEventListener('keydown', onKeyDown)
     if (lastIndicatorState && !thinkingHidden) {
       ensureIndicator(chatInput)
       applyIndicatorState(lastIndicatorState)
@@ -264,6 +259,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     init()
+    document.addEventListener('keydown', onKeyDown)
     observer.observe(document.body, { childList: true, subtree: true })
   })
 
