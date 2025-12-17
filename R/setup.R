@@ -47,9 +47,9 @@ prompt_provider_selection <- function() {
     list(
       name = "Google Gemini (Gemini 3 Pro)",
       fn_name = "chat_google_gemini",
-      model = "gemini-3-pro",
+      model = "gemini-3-pro-preview",
       create_client = function() {
-        ellmer::chat_google_gemini(model = "gemini-3-pro")
+        ellmer::chat_google_gemini(model = "gemini-3-pro-preview")
       }
     ),
     list(
