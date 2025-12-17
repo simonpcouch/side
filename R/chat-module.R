@@ -139,40 +139,7 @@ chat_mod_server_interruptible <- function(
     # dynamic reloading. We expose this method to allow external code to reload
     # the chat UI while maintaining access to the module's session context.
     load_chat_ui <- function() {
-      shinychat::chat_clear("chat", session = session)
-
-      msgs <- shinychat::contents_shinychat(client)
-      lapply(msgs, function(msg_turn) {
-        content <- filter_thinking_content(msg_turn$content)
-        if (is.null(content) || length(content) == 0) {
-          return()
-        }
-
-        is_list <- is.list(content) &&
-          !inherits(content, c("shiny.tag", "shiny.taglist"))
-
-        if (is_list) {
-          stream <- coro::generator(function() {
-            for (x in content) {
-              coro::yield(x)
-            }
-          })
-          shinychat::chat_append(
-            "chat",
-            stream(),
-            msg_turn$role,
-            session = session
-          )
-        } else {
-          shinychat::chat_append(
-            "chat",
-            content,
-            role = msg_turn$role,
-            session = session
-          )
-        }
-      })
-
+      restore_chat_filtered(client, session)
       thinking_replay_history(client, session)
     }
 
@@ -315,67 +282,46 @@ as_ellmer_turns <- function(messages) {
 }
 
 restore_chat_filtered <- function(client, session) {
-  msgs <- shinychat::contents_shinychat(client)
-  for (msg_turn in msgs) {
-    content <- filter_thinking_content(msg_turn$content)
-    if (is.null(content) || length(content) == 0) {
-      next
-    }
+  original_turns <- client$get_turns()
 
-    is_list <- is.list(content) &&
-      !inherits(content, c("shiny.tag", "shiny.taglist"))
+  assistant_idx <- 0
+  modified_turns <- list()
 
-    if (is_list) {
-      stream <- coro::generator(function() {
-        for (x in content) {
-          coro::yield(x)
+  for (turn in original_turns) {
+    if (turn@role == "assistant") {
+      assistant_idx <- assistant_idx + 1
+      new_contents <- list()
+      content_idx <- 0
+
+      for (c in turn@contents) {
+        content_idx <- content_idx + 1
+        if (S7::S7_inherits(c, ellmer::ContentThinking)) {
+          id <- thinking_history_id(assistant_idx, content_idx)
+          new_contents <- c(
+            new_contents,
+            ContentThinkingPlaceholder(id = id)
+          )
+        } else {
+          new_contents <- c(new_contents, c)
         }
-      })
-      shinychat::chat_append(
-        "chat",
-        stream(),
-        msg_turn$role,
-        session = session
-      )
-    } else {
-      shinychat::chat_append(
-        "chat",
-        content,
-        role = msg_turn$role,
-        session = session
-      )
-    }
-  }
-}
-
-filter_thinking_content <- function(content) {
-  if (is.null(content)) {
-    return(NULL)
-  }
-
-  strip_thinking <- function(x) {
-    if (is.character(x) && length(x) == 1) {
-      x <- sub(
-        "<details><summary>Thinking</summary>[\\s\\S]*?</details>\\s*",
-        "",
-        x,
-        perl = TRUE
-      )
-      if (!nzchar(trimws(x))) {
-        return(NULL)
       }
+      turn@contents <- new_contents
     }
-    x
+    modified_turns <- c(modified_turns, list(turn))
   }
 
-  if (is.list(content) && !inherits(content, c("shiny.tag", "shiny.taglist"))) {
-    content <- lapply(content, strip_thinking)
-    content <- Filter(function(x) !is.null(x), content)
-    if (length(content) == 0) {
-      return(NULL)
-    }
-    return(content)
-  }
+  client$set_turns(modified_turns)
+  on.exit(client$set_turns(original_turns), add = TRUE)
 
-  strip_thinking(content)
+  msgs <- shinychat::contents_shinychat(client)
+
+  shinychat::chat_clear("chat", session = session)
+  for (msg in msgs) {
+    shinychat::chat_append(
+      "chat",
+      msg$content,
+      role = msg$role,
+      session = session
+    )
+  }
 }

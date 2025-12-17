@@ -198,16 +198,25 @@
       const lastThinking = existingThinking[existingThinking.length - 1]
       lastThinking.insertAdjacentElement('afterend', wrapper)
     } else {
-      const container =
-        message.querySelector(':scope > div:not(.message-icon):not(.side-thinking-collapse)') ||
-        message.querySelector('shiny-markdown-stream, shiny-user-message')
-
-      if (container && container.parentNode === message) {
-        container.insertAdjacentElement('afterbegin', wrapper)
-      } else if (container && container !== message) {
-        container.insertAdjacentElement('afterbegin', wrapper)
+      const anchor = message.querySelector(`.side-thinking-anchor[data-id="${payload.id}"]`)
+      if (anchor) {
+        anchor.replaceWith(wrapper)
       } else {
-        message.appendChild(wrapper)
+        if ((payload._retries || 0) < 20) {
+          return null
+        }
+
+        const container =
+          message.querySelector(':scope > div:not(.message-icon):not(.side-thinking-collapse)') ||
+          message.querySelector('shiny-markdown-stream, shiny-user-message')
+
+        if (container && container.parentNode === message) {
+          container.insertAdjacentElement('afterbegin', wrapper)
+        } else if (container && container !== message) {
+          container.insertAdjacentElement('afterbegin', wrapper)
+        } else {
+          message.appendChild(wrapper)
+        }
       }
     }
 
@@ -248,20 +257,41 @@
     } else {
       parts.preview.classList.remove('side-thinking-shimmer')
     }
+    
+    // We don't delete the stream info on done anymore, because we might need
+    // to re-inject the wrapper if shinychat/markdown-stream re-renders the DOM.
+    // if (done) {
+    //   thinkingStreams.delete(id)
+    // }
+    
+    processAnchors()
+  }
 
-    if (done) {
-      thinkingStreams.delete(id)
-    }
+  function processAnchors() {
+    const anchors = document.querySelectorAll('.side-thinking-anchor')
+    anchors.forEach(anchor => {
+      const id = anchor.dataset.id
+      if (thinkingStreams.has(id)) {
+        const parts = thinkingStreams.get(id)
+        // If the wrapper is not currently connected (or we just found a new anchor),
+        // replace the anchor with the wrapper.
+        if (anchor.isConnected && parts.wrapper) {
+          anchor.replaceWith(parts.wrapper)
+        }
+      }
+    })
   }
 
   function init() {
     attachListeners()
     markAssistantMessages()
+    processAnchors()
   }
 
   const observer = new MutationObserver(() => {
     attachListeners()
     markAssistantMessages()
+    processAnchors()
   })
 
   document.addEventListener('DOMContentLoaded', () => {

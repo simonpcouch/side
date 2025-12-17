@@ -9,6 +9,20 @@ install_thinking_stream_hook <- function() {
     if (event$type == "content_block_start") {
       is_thinking <- identical(event$content_block$type, "thinking")
       options(side.current_block_is_thinking = is_thinking)
+
+      if (is_thinking) {
+        start_callback <- getOption("side.thinking_start_callback")
+        if (is.function(start_callback)) {
+          id <- start_callback()
+          if (!is.null(id)) {
+            return(paste0(
+              '<span class="side-thinking-anchor" data-id="',
+              id,
+              '"></span>'
+            ))
+          }
+        }
+      }
       return(NULL)
     }
 
@@ -45,6 +59,18 @@ install_thinking_stream_hook <- function() {
       if (is.function(callback)) {
         callback(event$delta)
       }
+
+      start_callback <- getOption("side.thinking_start_callback")
+      if (is.function(start_callback)) {
+        id <- start_callback()
+        if (!is.null(id)) {
+          return(paste0(
+            '<span class="side-thinking-anchor" data-id="',
+            id,
+            '"></span>'
+          ))
+        }
+      }
       return(NULL)
     } else if (event$type == "response.reasoning_summary_text.done") {
       done_callback <- getOption("side.thinking_done_callback")
@@ -69,6 +95,22 @@ install_thinking_stream_hook <- function() {
     for (part in parts) {
       if (isTRUE(part$thought) && !is.null(part$text)) {
         has_thinking <- TRUE
+
+        start_callback <- getOption("side.thinking_start_callback")
+        if (is.function(start_callback)) {
+          id <- start_callback()
+          if (!is.null(id)) {
+            text_parts <- c(
+              text_parts,
+              paste0(
+                '<span class="side-thinking-anchor" data-id="',
+                id,
+                '"></span>'
+              )
+            )
+          }
+        }
+
         if (is.function(callback)) {
           callback(part$text)
         }
@@ -155,6 +197,7 @@ set_thinking_stream_callback <- function(context) {
   if (is.null(context)) {
     options(side.thinking_stream_callback = NULL)
     options(side.thinking_done_callback = NULL)
+    options(side.thinking_start_callback = NULL)
     return(invisible(NULL))
   }
 
@@ -169,14 +212,29 @@ set_thinking_stream_callback <- function(context) {
     }
   }
 
+  start_callback <- function() {
+    if (is.null(context$id)) {
+      context$id <- paste0(
+        "think-live-",
+        format(Sys.time(), "%H%M%S%OS3"),
+        "-",
+        sample.int(1e6, 1)
+      )
+      return(context$id)
+    }
+    NULL
+  }
+
   options(side.thinking_stream_callback = text_callback)
   options(side.thinking_done_callback = done_callback)
+  options(side.thinking_start_callback = start_callback)
   invisible(NULL)
 }
 
 clear_thinking_stream_callback <- function() {
   options(side.thinking_stream_callback = NULL)
   options(side.thinking_done_callback = NULL)
+  options(side.thinking_start_callback = NULL)
   options(side.current_block_is_thinking = NULL)
   options(side.gemini_was_thinking = NULL)
   invisible(NULL)
@@ -242,6 +300,10 @@ thinking_context_finalize <- function(context) {
   invisible(NULL)
 }
 
+thinking_history_id <- function(assistant_index, content_index) {
+  paste0("think-history-", assistant_index, "-", content_index)
+}
+
 thinking_replay_history <- function(client, session) {
   if (is.null(session)) {
     return(invisible(NULL))
@@ -256,7 +318,9 @@ thinking_replay_history <- function(client, session) {
     }
     assistant_index <- assistant_index + 1
 
+    content_index <- 0
     for (content in turn@contents) {
+      content_index <- content_index + 1
       if (!S7::S7_inherits(content, ellmer::ContentThinking)) {
         next
       }
@@ -266,12 +330,7 @@ thinking_replay_history <- function(client, session) {
         next
       }
 
-      id <- paste0(
-        "think-history-",
-        format(Sys.time(), "%H%M%S%OS3"),
-        "-",
-        sample.int(1e6, 1)
-      )
+      id <- thinking_history_id(assistant_index, content_index)
 
       session$sendCustomMessage(
         "side-thinking-stream",
@@ -436,4 +495,17 @@ thinking_is_enabled <- function(client) {
 client_supports_thinking <- function(client) {
   provider <- client$get_provider()
   supports_thinking(provider)
+}
+
+ContentThinkingPlaceholder <- S7::new_class(
+  "ContentThinkingPlaceholder",
+  parent = ellmer::Content,
+  properties = list(
+    id = S7::class_character
+  )
+)
+
+contents_shinychat <- get("contents_shinychat", envir = asNamespace("shinychat"))
+S7::method(contents_shinychat, ContentThinkingPlaceholder) <- function(content) {
+  shiny::HTML(paste0('<span class="side-thinking-anchor" data-id="', content@id, '"></span>'))
 }
