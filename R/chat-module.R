@@ -32,7 +32,6 @@ chat_mod_server_interruptible <- function(
 
   shiny::moduleServer(id, function(input, output, session) {
     restore_chat_filtered(client, session)
-    thinking_replay_history(client, session)
 
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
@@ -140,7 +139,6 @@ chat_mod_server_interruptible <- function(
     # the chat UI while maintaining access to the module's session context.
     load_chat_ui <- function() {
       restore_chat_filtered(client, session)
-      thinking_replay_history(client, session)
     }
 
     list(
@@ -284,28 +282,14 @@ as_ellmer_turns <- function(messages) {
 restore_chat_filtered <- function(client, session) {
   original_turns <- client$get_turns()
 
-  assistant_idx <- 0
   modified_turns <- list()
 
   for (turn in original_turns) {
     if (turn@role == "assistant") {
-      assistant_idx <- assistant_idx + 1
-      new_contents <- list()
-      content_idx <- 0
-
-      for (c in turn@contents) {
-        content_idx <- content_idx + 1
-        if (S7::S7_inherits(c, ellmer::ContentThinking)) {
-          id <- thinking_history_id(assistant_idx, content_idx)
-          new_contents <- c(
-            new_contents,
-            ContentThinkingPlaceholder(id = id)
-          )
-        } else {
-          new_contents <- c(new_contents, c)
-        }
-      }
-      turn@contents <- new_contents
+      turn@contents <- Filter(
+        function(c) !S7::S7_inherits(c, ellmer::ContentThinking),
+        turn@contents
+      )
     }
     modified_turns <- c(modified_turns, list(turn))
   }
@@ -317,6 +301,9 @@ restore_chat_filtered <- function(client, session) {
 
   shinychat::chat_clear("chat", session = session)
   for (msg in msgs) {
+    if (is.null(msg$content) || length(msg$content) == 0) {
+      next
+    }
     shinychat::chat_append(
       "chat",
       msg$content,

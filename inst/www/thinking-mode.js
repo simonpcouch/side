@@ -52,11 +52,10 @@
 
   function markAssistantMessages() {
     const messages = document.querySelectorAll('shiny-chat-message[data-role="assistant"]')
+    assistantCounter = 0
     messages.forEach((msg) => {
-      if (!msg.dataset.sideAssistantIndex) {
-        assistantCounter += 1
-        msg.dataset.sideAssistantIndex = assistantCounter
-      }
+      assistantCounter += 1
+      msg.dataset.sideAssistantIndex = assistantCounter
     })
   }
 

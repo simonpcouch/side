@@ -300,51 +300,7 @@ thinking_context_finalize <- function(context) {
   invisible(NULL)
 }
 
-thinking_history_id <- function(assistant_index, content_index) {
-  paste0("think-history-", assistant_index, "-", content_index)
-}
-
-thinking_replay_history <- function(client, session) {
-  if (is.null(session)) {
-    return(invisible(NULL))
-  }
-
-  turns <- client$get_turns()
-  assistant_index <- 0
-
-  for (turn in turns) {
-    if (turn@role != "assistant") {
-      next
-    }
-    assistant_index <- assistant_index + 1
-
-    content_index <- 0
-    for (content in turn@contents) {
-      content_index <- content_index + 1
-      if (!S7::S7_inherits(content, ellmer::ContentThinking)) {
-        next
-      }
-
-      thinking_text <- content@thinking
-      if (!nzchar(thinking_text)) {
-        next
-      }
-
-      id <- thinking_history_id(assistant_index, content_index)
-
-      session$sendCustomMessage(
-        "side-thinking-stream",
-        list(
-          id = id,
-          text = thinking_text,
-          done = TRUE,
-          mode = "history",
-          order = assistant_index
-        )
-      )
-    }
-  }
-
+thinking_replay_history <- function(client, session, defer = TRUE) {
   invisible(NULL)
 }
 
@@ -495,17 +451,4 @@ thinking_is_enabled <- function(client) {
 client_supports_thinking <- function(client) {
   provider <- client$get_provider()
   supports_thinking(provider)
-}
-
-ContentThinkingPlaceholder <- S7::new_class(
-  "ContentThinkingPlaceholder",
-  parent = ellmer::Content,
-  properties = list(
-    id = S7::class_character
-  )
-)
-
-contents_shinychat <- get("contents_shinychat", envir = asNamespace("shinychat"))
-S7::method(contents_shinychat, ContentThinkingPlaceholder) <- function(content) {
-  shiny::HTML(paste0('<span class="side-thinking-anchor" data-id="', content@id, '"></span>'))
 }
