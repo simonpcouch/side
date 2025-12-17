@@ -193,15 +193,22 @@
 
     wrapper.appendChild(button)
 
-    const container = message.querySelector(':scope > div:not(.message-icon):not(.side-thinking-collapse)') ||
-      message.querySelector('shiny-markdown-stream, shiny-user-message')
-
-    if (container && container.parentNode === message) {
-      container.insertAdjacentElement('afterbegin', wrapper)
-    } else if (container && container !== message) {
-      container.insertAdjacentElement('afterbegin', wrapper)
+    const existingThinking = message.querySelectorAll('.side-thinking-collapse')
+    if (existingThinking.length > 0) {
+      const lastThinking = existingThinking[existingThinking.length - 1]
+      lastThinking.insertAdjacentElement('afterend', wrapper)
     } else {
-      message.appendChild(wrapper)
+      const container =
+        message.querySelector(':scope > div:not(.message-icon):not(.side-thinking-collapse)') ||
+        message.querySelector('shiny-markdown-stream, shiny-user-message')
+
+      if (container && container.parentNode === message) {
+        container.insertAdjacentElement('afterbegin', wrapper)
+      } else if (container && container !== message) {
+        container.insertAdjacentElement('afterbegin', wrapper)
+      } else {
+        message.appendChild(wrapper)
+      }
     }
 
     return { wrapper, button, preview, caret, fullText: '' }

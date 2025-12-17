@@ -6,6 +6,23 @@ install_thinking_stream_hook <- function() {
   stream_text <- ellmer:::stream_text
 
   patched_anthropic <- function(provider, event) {
+    if (event$type == "content_block_start") {
+      is_thinking <- identical(event$content_block$type, "thinking")
+      options(side.current_block_is_thinking = is_thinking)
+      return(NULL)
+    }
+
+    if (event$type == "content_block_stop") {
+      if (isTRUE(getOption("side.current_block_is_thinking"))) {
+        done_callback <- getOption("side.thinking_done_callback")
+        if (is.function(done_callback)) {
+          done_callback()
+        }
+      }
+      options(side.current_block_is_thinking = NULL)
+      return(NULL)
+    }
+
     if (event$type == "content_block_delta") {
       if (identical(event$delta$type, "thinking_delta")) {
         callback <- getOption("side.thinking_stream_callback")
@@ -30,6 +47,10 @@ install_thinking_stream_hook <- function() {
       }
       return(NULL)
     } else if (event$type == "response.reasoning_summary_text.done") {
+      done_callback <- getOption("side.thinking_done_callback")
+      if (is.function(done_callback)) {
+        done_callback()
+      }
       return(NULL)
     }
     NULL
@@ -43,9 +64,11 @@ install_thinking_stream_hook <- function() {
 
     callback <- getOption("side.thinking_stream_callback")
     text_parts <- character()
+    has_thinking <- FALSE
 
     for (part in parts) {
       if (isTRUE(part$thought) && !is.null(part$text)) {
+        has_thinking <- TRUE
         if (is.function(callback)) {
           callback(part$text)
         }
@@ -53,6 +76,15 @@ install_thinking_stream_hook <- function() {
         text_parts <- c(text_parts, part$text)
       }
     }
+
+    was_thinking <- isTRUE(getOption("side.gemini_was_thinking"))
+    if (was_thinking && !has_thinking) {
+      done_callback <- getOption("side.thinking_done_callback")
+      if (is.function(done_callback)) {
+        done_callback()
+      }
+    }
+    options(side.gemini_was_thinking = has_thinking)
 
     if (length(text_parts) > 0) {
       return(paste(text_parts, collapse = ""))
@@ -122,19 +154,31 @@ install_thinking_stream_hook <- function() {
 set_thinking_stream_callback <- function(context) {
   if (is.null(context)) {
     options(side.thinking_stream_callback = NULL)
+    options(side.thinking_done_callback = NULL)
     return(invisible(NULL))
   }
 
-  callback <- function(text) {
+  text_callback <- function(text) {
     thinking_context_emit(context, text, done = FALSE)
   }
 
-  options(side.thinking_stream_callback = callback)
+  done_callback <- function() {
+    if (!is.null(context$id)) {
+      thinking_context_emit(context, "", done = TRUE)
+      context$id <- NULL
+    }
+  }
+
+  options(side.thinking_stream_callback = text_callback)
+  options(side.thinking_done_callback = done_callback)
   invisible(NULL)
 }
 
 clear_thinking_stream_callback <- function() {
   options(side.thinking_stream_callback = NULL)
+  options(side.thinking_done_callback = NULL)
+  options(side.current_block_is_thinking = NULL)
+  options(side.gemini_was_thinking = NULL)
   invisible(NULL)
 }
 
@@ -168,10 +212,9 @@ thinking_context_emit <- function(context, text, done = FALSE) {
       return(invisible(NULL))
     }
 
-    timestamp_ms <- as.integer(as.numeric(Sys.time()) * 1000)
     context$id <- paste0(
       "think-live-",
-      timestamp_ms,
+      format(Sys.time(), "%H%M%S%OS3"),
       "-",
       sample.int(1e6, 1)
     )
@@ -223,10 +266,9 @@ thinking_replay_history <- function(client, session) {
         next
       }
 
-      timestamp_ms <- as.integer(as.numeric(Sys.time()) * 1000)
       id <- paste0(
         "think-history-",
-        timestamp_ms,
+        format(Sys.time(), "%H%M%S%OS3"),
         "-",
         sample.int(1e6, 1)
       )

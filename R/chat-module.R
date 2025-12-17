@@ -241,7 +241,6 @@ chat_append_interruptible <- coro::async(function(
     }
 
     if (S7::S7_inherits(msg, ellmer::ContentThinking)) {
-      thinking_context_emit(thinking_ctx, msg@thinking, done = FALSE)
       next
     }
 
