@@ -1,8 +1,4 @@
 install_thinking_stream_hook <- function() {
-  if (isTRUE(getOption("side.thinking_hook_installed"))) {
-    return(invisible(NULL))
-  }
-
   stream_text <- ellmer:::stream_text
 
   patched_anthropic <- function(provider, event) {
@@ -54,10 +50,12 @@ install_thinking_stream_hook <- function() {
   patched_openai <- function(provider, event) {
     if (event$type == "response.output_text.delta") {
       return(event$delta)
-    } else if (event$type == "response.reasoning_summary_text.delta") {
-      callback <- getOption("side.thinking_stream_callback")
-      if (is.function(callback)) {
-        callback(event$delta)
+    } else if (event$type == "response.reasoning_summary_part.added") {
+      summary_index <- event$summary_index %||% 0L
+      current_index <- getOption("side.openai_summary_index") %||% 0L
+
+      if (summary_index != current_index) {
+        return(NULL)
       }
 
       start_callback <- getOption("side.thinking_start_callback")
@@ -72,10 +70,29 @@ install_thinking_stream_hook <- function() {
         }
       }
       return(NULL)
+    } else if (event$type == "response.reasoning_summary_text.delta") {
+      summary_index <- event$summary_index %||% 0L
+      current_index <- getOption("side.openai_summary_index") %||% 0L
+
+      if (summary_index != current_index) {
+        return(NULL)
+      }
+
+      callback <- getOption("side.thinking_stream_callback")
+      if (is.function(callback)) {
+        callback(event$delta)
+      }
+      return(NULL)
     } else if (event$type == "response.reasoning_summary_text.done") {
-      done_callback <- getOption("side.thinking_done_callback")
-      if (is.function(done_callback)) {
-        done_callback()
+      summary_index <- event$summary_index %||% 0L
+      current_index <- getOption("side.openai_summary_index") %||% 0L
+
+      if (summary_index == current_index) {
+        done_callback <- getOption("side.thinking_done_callback")
+        if (is.function(done_callback)) {
+          done_callback()
+        }
+        options(side.openai_summary_index = current_index + 1L)
       }
       return(NULL)
     }
@@ -188,8 +205,6 @@ install_thinking_stream_hook <- function() {
   S7::method(stream_text, ProviderGoogleGemini) <- patched_gemini
   S7::method(value_turn, ProviderGoogleGemini) <- patched_gemini_value_turn
 
-  options(side.thinking_hook_installed = TRUE)
-
   invisible(NULL)
 }
 
@@ -198,6 +213,7 @@ set_thinking_stream_callback <- function(context) {
     options(side.thinking_stream_callback = NULL)
     options(side.thinking_done_callback = NULL)
     options(side.thinking_start_callback = NULL)
+    options(side.openai_summary_index = NULL)
     return(invisible(NULL))
   }
 
@@ -228,6 +244,7 @@ set_thinking_stream_callback <- function(context) {
   options(side.thinking_stream_callback = text_callback)
   options(side.thinking_done_callback = done_callback)
   options(side.thinking_start_callback = start_callback)
+  options(side.openai_summary_index = 0L)
   invisible(NULL)
 }
 
@@ -237,6 +254,7 @@ clear_thinking_stream_callback <- function() {
   options(side.thinking_start_callback = NULL)
   options(side.current_block_is_thinking = NULL)
   options(side.gemini_was_thinking = NULL)
+  options(side.openai_summary_index = NULL)
   invisible(NULL)
 }
 
