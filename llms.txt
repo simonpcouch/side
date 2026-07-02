@@ -30,6 +30,7 @@ desired.](https://github.com/user-attachments/assets/33e8d2bb-2e9e-4ff2-aef8-169
 To get started, install with:
 
 ``` r
+
 pak::pak("simonpcouch/side")
 ```
 

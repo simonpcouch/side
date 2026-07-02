@@ -1,6 +1,7 @@
 # Getting started with sidekick
 
 ``` r
+
 library(side)
 ```
 
@@ -16,6 +17,7 @@ session and run R code in it.
 To get started, install with:
 
 ``` r
+
 pak::pak("simonpcouch/side")
 ```
 
@@ -51,6 +53,7 @@ You can also configure a client manually by setting the `side.client`
 option:
 
 ``` r
+
 # For the current session only ------------------------
 options(side.client = ellmer::chat_anthropic(model = "claude-sonnet-4-5"))
 
