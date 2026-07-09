@@ -62,6 +62,7 @@ Then, run `side::kick()`. You might place `side::kick()` in your `.Rprofile` (pe
 * **Persist state** across R sessions so that you can close RStudio and come back to a chat later.
 * Respond to **interrupts** so that you can stop execution and reroute the agent.
 * Read **skills**, markdown files that describe how to carry out a given task in the way you need it to.
+* **Think out loud** with native reasoning support for Anthropic, OpenAI, and Google Gemini (Ctrl+T to toggle).
 
 ---
 

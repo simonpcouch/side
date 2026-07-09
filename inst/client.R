@@ -34,6 +34,8 @@ ui <- function(req) {
     tags$head(
       tags$script(src = "side/tool-approval.js"),
       tags$link(rel = "stylesheet", href = "side/tool-approval.css"),
+      tags$link(rel = "stylesheet", href = "side/thinking-mode.css"),
+      tags$script(src = "side/thinking-mode.js"),
       tags$style(HTML("
         .chat-menu-btn {
           position: fixed;
@@ -127,7 +129,38 @@ ui <- function(req) {
 }
 
 server <- function(input, output, session) {
+  side:::install_thinking_stream_hook()
   session$userData$approval_resolvers <- fastmap::fastmap()
+
+  thinking_supported <- side:::client_supports_thinking(client)
+  thinking_enabled <- reactiveVal(side:::thinking_is_enabled(client))
+
+  session$onFlushed(function() {
+    if (thinking_supported) {
+      session$sendCustomMessage(
+        "side-thinking-state",
+        list(enabled = shiny::isolate(thinking_enabled()), animate = FALSE)
+      )
+    } else {
+      session$sendCustomMessage(
+        "side-thinking-state",
+        list(hidden = TRUE)
+      )
+    }
+  }, once = TRUE)
+
+  observeEvent(input$thinking_toggle, {
+    if (!thinking_supported) {
+      return()
+    }
+    new_state <- !thinking_enabled()
+    side:::toggle_thinking(client, new_state)
+    thinking_enabled(new_state)
+    session$sendCustomMessage(
+      "side-thinking-state",
+      list(enabled = new_state, animate = TRUE)
+    )
+  })
 
   observeEvent(input$tool_approval_response, {
     response_data <- input$tool_approval_response
@@ -145,7 +178,11 @@ server <- function(input, output, session) {
   side:::setup_tool_interrupt_callback(client, interrupt_flag, session)
   side:::setup_tool_approval_callback(client, session)
 
-  chat_server <- side:::chat_mod_server_interruptible("chat", client, interrupt_flag)
+  chat_server <- side:::chat_mod_server_interruptible(
+    "chat",
+    client,
+    interrupt_flag
+  )
   
   observeEvent(input$interrupt_requested, {
     if (!interrupt_flag()) {
@@ -235,6 +272,12 @@ server <- function(input, output, session) {
     current_file(input$load_chat_click)
 
     chat_server$load_chat()
+    restored_state <- side:::thinking_is_enabled(client)
+    thinking_enabled(restored_state)
+    session$sendCustomMessage(
+      "side-thinking-state",
+      list(enabled = restored_state, animate = FALSE)
+    )
 
     menu_trigger(menu_trigger() + 1)
   })

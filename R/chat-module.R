@@ -1,6 +1,16 @@
-chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
+chat_mod_server_interruptible <- function(
+  id,
+  client,
+  interrupt_flag
+) {
   append_stream_task <- shiny::ExtendedTask$new(
-    function(client, ui_id, user_input, interrupt_flag) {
+    function(
+      client,
+      ui_id,
+      user_input,
+      interrupt_flag,
+      assistant_index = NULL
+    ) {
       stream <- client$stream_async(
         user_input,
         stream = "content"
@@ -13,18 +23,15 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
           stream,
           interrupt_flag,
           client,
-          user_input
+          user_input,
+          assistant_index = assistant_index
         )
       })
     }
   )
 
   shiny::moduleServer(id, function(input, output, session) {
-    shinychat::chat_restore(
-      "chat",
-      client,
-      session = session
-    )
+    restore_chat_filtered(client, session)
 
     last_turn <- shiny::reactiveVal(NULL, label = "last_turn")
     last_input <- shiny::reactiveVal(NULL, label = "last_input")
@@ -35,12 +42,14 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
       }
 
       last_input(input$chat_user_input)
+      assistant_index <- thinking_next_assistant_index(client)
 
       append_stream_task$invoke(
         client,
         "chat",
         input$chat_user_input,
-        interrupt_flag
+        interrupt_flag,
+        assistant_index
       )
     })
 
@@ -129,34 +138,7 @@ chat_mod_server_interruptible <- function(id, client, interrupt_flag) {
     # dynamic reloading. We expose this method to allow external code to reload
     # the chat UI while maintaining access to the module's session context.
     load_chat_ui <- function() {
-      shinychat::chat_clear("chat", session = session)
-
-      msgs <- shinychat::contents_shinychat(client)
-      lapply(msgs, function(msg_turn) {
-        is_list <- is.list(msg_turn$content) &&
-          !inherits(msg_turn$content, c("shiny.tag", "shiny.taglist"))
-
-        if (is_list) {
-          stream <- coro::generator(function() {
-            for (x in msg_turn$content) {
-              coro::yield(x)
-            }
-          })
-          shinychat::chat_append(
-            "chat",
-            stream(),
-            msg_turn$role,
-            session = session
-          )
-        } else {
-          shinychat::chat_append(
-            "chat",
-            msg_turn$content,
-            role = msg_turn$role,
-            session = session
-          )
-        }
-      })
+      restore_chat_filtered(client, session)
     }
 
     list(
@@ -179,7 +161,8 @@ chat_append_interruptible <- coro::async(function(
   user_input = NULL,
   role = "assistant",
   icon = NULL,
-  session = shiny::getDefaultReactiveDomain()
+  session = shiny::getDefaultReactiveDomain(),
+  assistant_index = NULL
 ) {
   chat_append_ <- function(content, chunk = TRUE, ...) {
     shinychat::chat_append_message(
@@ -196,6 +179,12 @@ chat_append_interruptible <- coro::async(function(
 
   res <- fastmap::fastqueue(200)
 
+  if (is.null(assistant_index)) {
+    assistant_index <- thinking_next_assistant_index(client)
+  }
+  thinking_ctx <- thinking_context_new(session, assistant_index)
+  set_thinking_stream_callback(thinking_ctx)
+
   interrupted <- FALSE
   for (msg in stream) {
     if (promises::is.promising(msg)) {
@@ -210,13 +199,17 @@ chat_append_interruptible <- coro::async(function(
       break
     }
 
-    res$add(msg)
-
     if (S7::S7_inherits(msg, ellmer::ContentToolResult)) {
       if (!is.null(msg@request)) {
         session$sendCustomMessage("shiny-tool-request-hide", msg@request@id)
       }
     }
+
+    if (S7::S7_inherits(msg, ellmer::ContentThinking)) {
+      next
+    }
+
+    res$add(msg)
 
     if (S7::S7_inherits(msg, ellmer::Content)) {
       msg <- shinychat::contents_shinychat(msg)
@@ -224,6 +217,9 @@ chat_append_interruptible <- coro::async(function(
 
     chat_append_(msg)
   }
+
+  clear_thinking_stream_callback()
+  thinking_context_finalize(thinking_ctx)
 
   if (interrupted) {
     streamed_content <- res$as_list()
@@ -281,4 +277,38 @@ as_ellmer_turns <- function(messages) {
 
     ellmer::Turn(role = role, contents = contents)
   })
+}
+
+restore_chat_filtered <- function(client, session) {
+  original_turns <- client$get_turns()
+
+  modified_turns <- list()
+
+  for (turn in original_turns) {
+    if (turn@role == "assistant") {
+      turn@contents <- Filter(
+        function(c) !S7::S7_inherits(c, ellmer::ContentThinking),
+        turn@contents
+      )
+    }
+    modified_turns <- c(modified_turns, list(turn))
+  }
+
+  client$set_turns(modified_turns)
+  on.exit(client$set_turns(original_turns), add = TRUE)
+
+  msgs <- shinychat::contents_shinychat(client)
+
+  shinychat::chat_clear("chat", session = session)
+  for (msg in msgs) {
+    if (is.null(msg$content) || length(msg$content) == 0) {
+      next
+    }
+    shinychat::chat_append(
+      "chat",
+      msg$content,
+      role = msg$role,
+      session = session
+    )
+  }
 }

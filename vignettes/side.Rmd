@@ -67,6 +67,12 @@ You can **stop execution mid-stream and reroute the agent** without losing conve
 
 Finally, the agent can **fetch and apply skills**--markdown files describing task-specific procedures. This allows you to customize the agent's behavior for project-specific workflows, ensuring it follows your preferred patterns and practices. You can add custom skills in `~/.config/side/skills` on macOS/Linux or `%APPDATA%/side/skills` on Windows. User skills override built-in skills with the same name.
 
+## Thinking mode
+
+For complex tasks, you can enable **thinking mode** which shows the model's reasoning process before it responds. Press **Ctrl+T** in the chat input to toggle thinking on or off. When enabled, a collapsible "Thinking" block appears above each response showing how the model approached the problem.
+
+Thinking mode uses native reasoning settings from your provider. For Anthropic and Google Gemini, it sets the thinking budget to 1024, and for OpenAI, it sets the reasoning effort to "medium". Thinking is disabled automatically for models that don't support it and isn't supported for providers other than the big three.
+
 ## Customizing behavior
 
 You can customize the assistant's behavior for your project by creating a `CLAUDE.md`, `btw.md`, `llms.txt`, or `AGENTS.md` file in your project directory. The assistant will read the first file it finds (searching in the order shown above) and include its contents in the system prompt, allowing you to provide project-specific instructions, coding conventions, or context.
